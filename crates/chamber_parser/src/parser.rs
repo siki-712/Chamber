@@ -670,21 +670,8 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             }
         }
 
-        // W001: UnusualOctave (very high or very low)
-        if octave > 3 || octave < -2 {
-            self.report(Diagnostic::warning(
-                DiagnosticCode::UnusualOctave,
-                TextRange::new(start, self.current_position()),
-                format!(
-                    "unusual octave {} (notes this {} are rare)",
-                    octave,
-                    if octave > 3 { "high" } else { "low" }
-                ),
-            ));
-        }
-
         // Parse duration
-        let duration = self.parse_duration_with_validation(start);
+        let duration = self.parse_duration();
 
         let end = self.current_position();
         Some(Note {
@@ -772,14 +759,6 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
     }
 
     fn parse_duration(&mut self) -> Option<Duration> {
-        self.parse_duration_internal(None)
-    }
-
-    fn parse_duration_with_validation(&mut self, note_start: TextSize) -> Option<Duration> {
-        self.parse_duration_internal(Some(note_start))
-    }
-
-    fn parse_duration_internal(&mut self, note_start: Option<TextSize>) -> Option<Duration> {
         let dur_start = self.current_position();
         let mut numerator = 1u32;
         let mut denominator = 1u32;
@@ -823,24 +802,6 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         }
 
         if has_duration {
-            // W002: SuspiciousDuration - very large duration
-            let effective_duration = numerator as f64 / denominator as f64;
-            if effective_duration >= 16.0 {
-                let range = if let Some(start) = note_start {
-                    TextRange::new(start, self.current_position())
-                } else {
-                    TextRange::new(dur_start, self.current_position())
-                };
-                self.report(Diagnostic::warning(
-                    DiagnosticCode::SuspiciousDuration,
-                    range,
-                    format!(
-                        "suspicious duration {}/{} (very long note)",
-                        numerator, denominator
-                    ),
-                ));
-            }
-
             Some(Duration::new(numerator, denominator))
         } else {
             None

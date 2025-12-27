@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::process::ExitCode;
 
-use chamber_analyzer::analyze;
+use chamber_analyzer::Analyzer;
 use chamber_diagnostics::{Diagnostic, LineIndex, Severity};
 use chamber_parser::parse_with_diagnostics;
 
@@ -67,25 +67,25 @@ fn cmd_check(path: &str) -> ExitCode {
         }
     };
 
-    // Parse with diagnostics
-    let result = parse_with_diagnostics(&source);
+    // Parse
+    let parse_result = parse_with_diagnostics(&source);
     let line_index = LineIndex::new(&source);
 
-    // Run semantic analysis
-    let analyzer_diagnostics = analyze(&result.tune);
+    // Analyze
+    let analysis_result = Analyzer::new().analyze(&parse_result.tune);
 
-    // Combine parser and analyzer diagnostics
-    let all_diagnostics: Vec<_> = result
-        .diagnostics
-        .iter()
-        .chain(analyzer_diagnostics.iter())
-        .collect();
+    // Combine diagnostics: parser errors + analyzer diagnostics
+    let mut all_diagnostics: Vec<&Diagnostic> = parse_result.diagnostics.iter().collect();
+    all_diagnostics.extend(analysis_result.diagnostics.iter());
+
+    // Sort by position
+    all_diagnostics.sort_by_key(|d| d.range.start());
 
     // Print diagnostics
     let mut error_count = 0;
     let mut warning_count = 0;
 
-    for diag in all_diagnostics.iter() {
+    for diag in &all_diagnostics {
         print_diagnostic(path, &source, &line_index, diag);
 
         match diag.severity {
@@ -121,7 +121,7 @@ fn cmd_check(path: &str) -> ExitCode {
     }
 
     // Print tune info
-    let tune = &result.tune;
+    let tune = &parse_result.tune;
     if !tune.header.fields.is_empty() {
         eprintln!();
         eprintln!("Tune info:");
@@ -159,9 +159,9 @@ fn print_diagnostic(path: &str, source: &str, line_index: &LineIndex, diag: &Dia
 
     // Severity color/prefix
     let (severity_str, color_code) = match diag.severity {
-        Severity::Error => ("error", "\x1b[31m"),   // Red
+        Severity::Error => ("error", "\x1b[31m"),    // Red
         Severity::Warning => ("warning", "\x1b[33m"), // Yellow
-        Severity::Info => ("info", "\x1b[34m"),     // Blue
+        Severity::Info => ("info", "\x1b[34m"),      // Blue
     };
     let reset = "\x1b[0m";
     let bold = "\x1b[1m";

@@ -2,8 +2,10 @@
 //!
 //! Checks that decoration names are valid ABC 2.1 standard decorations.
 
-use chamber_diagnostics::{Diagnostic, DiagnosticCode};
+use chamber_diagnostics::{Diagnostic, DiagnosticCode, Severity};
 use chamber_parser::{Decoration, MusicElement, Tune};
+
+use crate::rule::{Category, Rule, RuleMeta};
 
 /// Standard ABC 2.1 decoration names.
 const STANDARD_DECORATIONS: &[&str] = &[
@@ -46,10 +48,22 @@ const STANDARD_DECORATIONS: &[&str] = &[
     "upfermata", "downfermata",
 ];
 
-/// Checks a tune for unknown decoration names.
-pub fn check(tune: &Tune, diagnostics: &mut Vec<Diagnostic>) {
-    for element in &tune.body.elements {
-        check_element(element, diagnostics);
+/// Rule that checks for unknown decoration names.
+pub struct UnknownDecoration;
+
+impl RuleMeta for UnknownDecoration {
+    const NAME: &'static str = "unknownDecoration";
+    const CODE: DiagnosticCode = DiagnosticCode::UnknownDecoration;
+    const SEVERITY: Severity = Severity::Error;
+    const CATEGORY: Category = Category::Lint;
+    const DOCS: &'static str = "Checks that decoration names are valid ABC 2.1 standard decorations.";
+}
+
+impl Rule for UnknownDecoration {
+    fn run(tune: &Tune, diagnostics: &mut Vec<Diagnostic>) {
+        for element in &tune.body.elements {
+            check_element(element, diagnostics);
+        }
     }
 }
 
@@ -63,7 +77,6 @@ fn check_element(element: &MusicElement, diagnostics: &mut Vec<Diagnostic>) {
         }
         MusicElement::Chord(chord) => {
             check_decorations(&chord.decorations, diagnostics);
-            // Also check decorations on individual notes in the chord
             for note in &chord.notes {
                 check_decorations(&note.decorations, diagnostics);
             }
@@ -123,8 +136,6 @@ fn suggest_decoration(name: &str) -> Option<&'static str> {
 
     for &standard in STANDARD_DECORATIONS {
         let distance = levenshtein_distance(&name_lower, &standard.to_lowercase());
-
-        // Only suggest if distance is reasonable (< 3 for short names, < half length for longer)
         let max_distance = if name.len() <= 4 { 2 } else { name.len() / 2 };
 
         if distance < best_distance && distance <= max_distance {
@@ -156,11 +167,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     for i in 1..=m {
         curr[0] = i;
         for j in 1..=n {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
