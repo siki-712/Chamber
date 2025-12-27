@@ -2,8 +2,8 @@
 //!
 //! Checks that decoration names are valid ABC 2.1 standard decorations.
 
+use chamber_ast::{Decoration, MusicElement, Tune};
 use chamber_diagnostics::{Diagnostic, DiagnosticCode, Severity};
-use chamber_parser::{Decoration, MusicElement, Tune};
 
 use crate::rule::{Category, Rule, RuleMeta};
 

@@ -2,8 +2,8 @@
 //!
 //! Warns when notes have unusually long durations.
 
+use chamber_ast::{Duration, MusicElement, Tune};
 use chamber_diagnostics::{Diagnostic, DiagnosticCode, Severity};
-use chamber_parser::{Duration, MusicElement, Tune};
 
 use crate::rule::{Category, Rule, RuleMeta};
 

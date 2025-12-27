@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chamber_ast = { path = "../chamber_ast" }
 chamber_text_size = { path = "../chamber_text_size" }
 chamber_lexer = { path = "../chamber_lexer" }
 chamber_diagnostics = { path = "../chamber_diagnostics" }

@@ -2,8 +2,8 @@
 //!
 //! Warns when notes are in extremely high or low octaves.
 
+use chamber_ast::{MusicElement, Note, Tune};
 use chamber_diagnostics::{Diagnostic, DiagnosticCode, Severity};
-use chamber_parser::{MusicElement, Note, Tune};
 
 use crate::rule::{Category, Rule, RuleMeta};
 

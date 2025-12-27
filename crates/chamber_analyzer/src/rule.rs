@@ -1,7 +1,7 @@
 //! Rule trait and infrastructure for semantic analysis.
 
+use chamber_ast::Tune;
 use chamber_diagnostics::{Diagnostic, DiagnosticCode, Severity};
-use chamber_parser::Tune;
 
 /// Category of a rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

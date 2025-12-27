@@ -28,8 +28,8 @@
 mod rule;
 pub mod rules;
 
+use chamber_ast::Tune;
 use chamber_diagnostics::Diagnostic;
-use chamber_parser::Tune;
 
 pub use rule::{Category, Rule, RuleExt, RuleMeta};
 pub use rules::{SuspiciousDuration, UnknownDecoration, UnusualOctave};

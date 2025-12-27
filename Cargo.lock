@@ -6,8 +6,16 @@ version = 3
 name = "chamber_analyzer"
 version = "0.1.0"
 dependencies = [
+ "chamber_ast",
  "chamber_diagnostics",
  "chamber_parser",
+ "chamber_text_size",
+]
+
+[[package]]
+name = "chamber_ast"
+version = "0.1.0"
+dependencies = [
  "chamber_text_size",
 ]
 
@@ -38,6 +46,7 @@ dependencies = [
 name = "chamber_parser"
 version = "0.1.0"
 dependencies = [
+ "chamber_ast",
  "chamber_diagnostics",
  "chamber_lexer",
  "chamber_text_size",

@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-chamber_parser = { path = "../chamber_parser" }
+chamber_ast = { path = "../chamber_ast" }
 chamber_diagnostics = { path = "../chamber_diagnostics" }
 chamber_text_size = { path = "../chamber_text_size" }
+
+[dev-dependencies]
+chamber_parser = { path = "../chamber_parser" }
