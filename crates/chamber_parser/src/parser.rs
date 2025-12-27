@@ -201,6 +201,12 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                 continue;
             }
 
+            // Skip newlines
+            if self.check(TokenKind::Newline) {
+                self.advance();
+                continue;
+            }
+
             if let Some(element) = self.parse_music_element() {
                 elements.push(element);
             } else {
@@ -241,10 +247,6 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             TokenKind::LeftBrace => self.parse_grace_notes().map(MusicElement::GraceNotes),
             TokenKind::BrokenRhythm => self.parse_broken_rhythm().map(MusicElement::BrokenRhythm),
             TokenKind::Tie => self.parse_tie().map(MusicElement::Tie),
-            TokenKind::Newline => {
-                self.advance();
-                None
-            }
             _ => None,
         }
     }
@@ -423,13 +425,14 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                 continue;
             }
 
+            // Check recovery point BEFORE attempting to parse (parse_note advances)
+            if self.is_recovery_point() {
+                break;
+            }
+
             if let Some(note) = self.parse_note() {
                 notes.push(note);
             } else {
-                // Skip to recovery point (] or bar line or newline)
-                if self.is_recovery_point() {
-                    break;
-                }
                 self.advance();
             }
         }
@@ -541,10 +544,13 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         while !self.is_at_end() && !self.check(TokenKind::RightParen) {
             self.handle_error_tokens();
 
+            // Check recovery point BEFORE attempting to parse
+            if self.is_recovery_point() {
+                break;
+            }
+
             if let Some(element) = self.parse_music_element() {
                 elements.push(element);
-            } else if self.check(TokenKind::Eof) || self.is_recovery_point() {
-                break;
             } else {
                 self.advance();
             }
@@ -587,10 +593,13 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         while !self.is_at_end() && !self.check(TokenKind::RightBrace) {
             self.handle_error_tokens();
 
+            // Check recovery point BEFORE attempting to parse (parse_note advances)
+            if self.is_recovery_point() {
+                break;
+            }
+
             if let Some(note) = self.parse_note() {
                 notes.push(note);
-            } else if self.is_recovery_point() {
-                break;
             } else {
                 self.advance();
             }

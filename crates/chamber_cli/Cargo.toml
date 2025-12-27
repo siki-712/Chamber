@@ -1,0 +1,12 @@
+[package]
+name = "chamber_cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "chamber"
+path = "src/main.rs"
+
+[dependencies]
+chamber_parser = { path = "../chamber_parser" }
+chamber_diagnostics = { path = "../chamber_diagnostics" }

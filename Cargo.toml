@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/chamber_text_size",
+    "crates/chamber_lexer",
+    "crates/chamber_diagnostics",
+    "crates/chamber_parser",
+    "crates/chamber_cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/aspect-analytics/chamber"
