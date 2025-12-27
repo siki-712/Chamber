@@ -430,6 +430,11 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                 break;
             }
 
+            // Opening brackets of other structures end this chord
+            if self.check(TokenKind::LeftParen) || self.check(TokenKind::LeftBrace) {
+                break;
+            }
+
             if let Some(note) = self.parse_note() {
                 notes.push(note);
             } else {
@@ -552,7 +557,24 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             if let Some(element) = self.parse_music_element() {
                 elements.push(element);
             } else {
-                self.advance();
+                // Check for unexpected closing brackets before skipping
+                if self.check(TokenKind::RightBracket) {
+                    let token = self.advance().unwrap();
+                    self.report(Diagnostic::error(
+                        DiagnosticCode::UnexpectedClosingBracket,
+                        token.range,
+                        "unexpected ']' without matching '['",
+                    ));
+                } else if self.check(TokenKind::RightBrace) {
+                    let token = self.advance().unwrap();
+                    self.report(Diagnostic::error(
+                        DiagnosticCode::UnexpectedClosingBrace,
+                        token.range,
+                        "unexpected '}' without matching '{'",
+                    ));
+                } else {
+                    self.advance();
+                }
             }
         }
 
@@ -595,6 +617,14 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
 
             // Check recovery point BEFORE attempting to parse (parse_note advances)
             if self.is_recovery_point() {
+                break;
+            }
+
+            // Opening brackets of other structures end this grace notes
+            if self.check(TokenKind::LeftBracket)
+                || self.check(TokenKind::LeftParen)
+                || self.check(TokenKind::LeftBrace)
+            {
                 break;
             }
 
