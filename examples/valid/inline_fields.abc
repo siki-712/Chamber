@@ -1,0 +1,13 @@
+X:1
+T:Inline Field Examples
+M:4/4
+L:1/8
+K:C
+% Meter change mid-tune
+CDEF GABc | [M:3/4] ABc ABc |
+% Key change
+[K:G] GABd | [K:Am] ABcA |
+% Tempo change
+[Q:120] CDEF | [Q:1/4=80] EFGA |
+% Unit note length change
+[L:1/16] CDEF GABC |

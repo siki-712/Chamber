@@ -596,7 +596,13 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             | TokenKind::RepeatEnd
             | TokenKind::ThinThickBar
             | TokenKind::ThickThinBar => self.parse_bar_line().map(MusicElement::BarLine),
-            TokenKind::LeftBracket => self.parse_chord().map(MusicElement::Chord),
+            TokenKind::LeftBracket => {
+                if self.is_inline_field() {
+                    self.parse_inline_field().map(MusicElement::InlineField)
+                } else {
+                    self.parse_chord().map(MusicElement::Chord)
+                }
+            }
             TokenKind::Tuplet => self.parse_tuplet().map(MusicElement::Tuplet),
             TokenKind::LeftParen => self.parse_slur().map(MusicElement::Slur),
             TokenKind::LeftBrace => self.parse_grace_notes().map(MusicElement::GraceNotes),
@@ -892,6 +898,90 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         Some(Chord {
             notes,
             duration,
+            range: TextRange::new(start, end),
+        })
+    }
+
+    /// Checks if the current position is an inline field [X:...].
+    fn is_inline_field(&self) -> bool {
+        // Look ahead: [ followed by FieldLabel
+        let mut i = self.position;
+
+        // Skip [
+        if self.tokens.get(i).map(|t| t.kind) != Some(TokenKind::LeftBracket) {
+            return false;
+        }
+        i += 1;
+
+        // Skip whitespace
+        while self.tokens.get(i).map(|t| t.kind) == Some(TokenKind::Whitespace) {
+            i += 1;
+        }
+
+        // Check for FieldLabel
+        self.tokens.get(i).map(|t| t.kind) == Some(TokenKind::FieldLabel)
+    }
+
+    fn parse_inline_field(&mut self) -> Option<InlineField> {
+        let start = self.current_position();
+        let open_bracket_range = self.peek()?.range;
+
+        // Consume [
+        if !self.check(TokenKind::LeftBracket) {
+            return None;
+        }
+        self.advance();
+
+        // Skip whitespace
+        self.skip_whitespace_only();
+
+        // Parse field label
+        let label_token = self.advance()?;
+        if label_token.kind != TokenKind::FieldLabel {
+            return None;
+        }
+        let label_text = self.token_text(&label_token);
+        let label = label_text.chars().next()?;
+
+        // Skip whitespace
+        self.skip_whitespace_only();
+
+        // Expect colon
+        if !self.check(TokenKind::Colon) {
+            return None;
+        }
+        self.advance();
+
+        // Collect value until ]
+        let value_start = self.current_position();
+        while !self.is_at_end() && !self.check(TokenKind::RightBracket) {
+            // Stop at recovery points
+            if self.is_recovery_point() {
+                break;
+            }
+            self.advance();
+        }
+        let value_end = self.current_position();
+        let value = self.source[value_start.raw() as usize..value_end.raw() as usize].to_string();
+
+        // Consume ] or report error
+        if self.check(TokenKind::RightBracket) {
+            self.advance();
+        } else {
+            self.report(
+                Diagnostic::error(
+                    DiagnosticCode::UnclosedInlineField,
+                    TextRange::new(start, self.current_position()),
+                    "unclosed inline field, missing ']'",
+                )
+                .with_label(open_bracket_range, "opening '[' here"),
+            );
+        }
+
+        let end = self.current_position();
+        Some(InlineField {
+            label,
+            value: value.trim().to_string(),
             range: TextRange::new(start, end),
         })
     }

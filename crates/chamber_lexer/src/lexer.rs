@@ -263,6 +263,11 @@ impl<'a> Lexer<'a> {
         while let Some(c) = self.peek() {
             match c {
                 '\n' | '\r' | '%' => break,
+                // Stop at ] for inline fields
+                ']' => {
+                    self.in_header = false;
+                    break;
+                }
                 _ => {
                     self.advance();
                 }

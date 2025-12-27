@@ -68,6 +68,8 @@ pub enum DiagnosticCode {
     EmptyTuplet,
     /// M012: Tuplet note count mismatch.
     TupletNoteMismatch,
+    /// M013: Unclosed inline field ([ without ]).
+    UnclosedInlineField,
 
     // =========================================
     // Structural errors (S001-S099)
@@ -119,6 +121,7 @@ impl DiagnosticCode {
             DiagnosticCode::EmptyChord => "M010",
             DiagnosticCode::EmptyTuplet => "M011",
             DiagnosticCode::TupletNoteMismatch => "M012",
+            DiagnosticCode::UnclosedInlineField => "M013",
 
             // Structural
             DiagnosticCode::EmptyTune => "S001",
@@ -179,6 +182,7 @@ impl DiagnosticCode {
             DiagnosticCode::EmptyChord => "empty chord",
             DiagnosticCode::EmptyTuplet => "empty tuplet",
             DiagnosticCode::TupletNoteMismatch => "tuplet note count does not match ratio",
+            DiagnosticCode::UnclosedInlineField => "unclosed inline field, missing ']'",
 
             // Structural
             DiagnosticCode::EmptyTune => "empty tune",

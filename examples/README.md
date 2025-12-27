@@ -9,10 +9,11 @@ examples/
 ├── valid/           # Valid ABC files (no errors)
 │   ├── simple.abc
 │   ├── twinkle.abc
-│   └── modes.abc
+│   ├── modes.abc
+│   └── inline_fields.abc
 ├── errors/          # Files with errors
 │   ├── header/      # Header validation errors (H001-H012)
-│   ├── music/       # Music body errors (M001-M009, L001)
+│   ├── music/       # Music body errors (M001-M013, L001)
 │   └── structure/   # Structural errors (S001-S002)
 └── warnings/        # Files with warnings only
     ├── missing_title.abc
@@ -50,12 +51,13 @@ done
 - `empty_x.abc` - H011: Empty X: field
 - `invalid_x_value.abc` - H012: Non-numeric X: value
 
-### Music Errors (M001-M009)
+### Music Errors (M001-M013)
 - `unclosed_chord.abc` - M001: Missing ]
 - `unclosed_slur.abc` - M002: Missing )
 - `unclosed_grace.abc` - M003: Missing }
 - `unexpected_brackets.abc` - M004/M005/M006: Unexpected closers
 - `invalid_duration.abc` - M009: Zero denominator
+- `unclosed_inline_field.abc` - M013: Unclosed inline field
 - `unexpected_char.abc` - L001: Invalid character
 
 ### Structure Errors (S001-S002)

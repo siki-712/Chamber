@@ -134,6 +134,7 @@ K:Xmaj
 | M010 | EmptyChord | Warning | `[]` with no notes |
 | M011 | EmptyTuplet | Warning | Tuplet with no notes |
 | M012 | TupletNoteMismatch | Warning | Tuplet note count differs from ratio |
+| M013 | UnclosedInlineField | Error | `[X:` without matching `]` |
 
 **Examples:**
 ```abc
@@ -171,6 +172,11 @@ X:1
 K:C
 (3CD|
    ^ M012: tuplet note count does not match ratio (expected 3, got 2)
+
+X:1
+K:C
+[M:3/4 CDEF
+      ^ M013: unclosed inline field, missing ']'
 ```
 
 ---
@@ -249,6 +255,7 @@ All diagnostic codes are implemented and tested.
 | M010 | Yes | Yes |
 | M011 | Yes | Yes |
 | M012 | Yes | Yes |
+| M013 | Yes | Yes |
 | S001 | Yes | Yes |
 | S002 | Yes | Yes |
 | W001 | Yes | Yes |

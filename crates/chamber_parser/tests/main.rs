@@ -605,3 +605,137 @@ fn test_invalid_duration_zero_denominator() {
         result.diagnostics
     );
 }
+
+// ============================================
+// Inline fields
+// ============================================
+
+#[test]
+fn test_inline_field_meter() {
+    let tune = parse("X:1\nK:C\nCDEF [M:3/4] GAB|");
+
+    // Should have: C, D, E, F, InlineField, G, A, B, BarLine
+    assert!(tune.body.elements.len() >= 5);
+
+    match &tune.body.elements[4] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'M');
+            assert_eq!(f.value, "3/4");
+        }
+        other => panic!("Expected InlineField, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_inline_field_key() {
+    let tune = parse("X:1\nK:C\nCDEF [K:G] GAB|");
+
+    match &tune.body.elements[4] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'K');
+            assert_eq!(f.value, "G");
+        }
+        other => panic!("Expected InlineField, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_inline_field_tempo() {
+    let tune = parse("X:1\nK:C\n[Q:120] CDEF|");
+
+    match &tune.body.elements[0] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'Q');
+            assert_eq!(f.value, "120");
+        }
+        other => panic!("Expected InlineField, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_inline_field_unit_note_length() {
+    let tune = parse("X:1\nK:C\n[L:1/16] CDEF|");
+
+    match &tune.body.elements[0] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'L');
+            assert_eq!(f.value, "1/16");
+        }
+        other => panic!("Expected InlineField, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_chord_still_works() {
+    let tune = parse("X:1\nK:C\n[CEG]|");
+
+    match &tune.body.elements[0] {
+        MusicElement::Chord(chord) => {
+            assert_eq!(chord.notes.len(), 3);
+            assert_eq!(chord.notes[0].pitch, Pitch::C);
+            assert_eq!(chord.notes[1].pitch, Pitch::E);
+            assert_eq!(chord.notes[2].pitch, Pitch::G);
+        }
+        other => panic!("Expected Chord, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_inline_field_vs_chord() {
+    // Both inline fields and chords in same tune
+    let tune = parse("X:1\nK:C\n[CEG] [M:3/4] [FAC]|");
+
+    // Element 0: Chord [CEG]
+    match &tune.body.elements[0] {
+        MusicElement::Chord(chord) => {
+            assert_eq!(chord.notes.len(), 3);
+        }
+        other => panic!("Expected Chord at index 0, got {:?}", other),
+    }
+
+    // Element 1: InlineField [M:3/4]
+    match &tune.body.elements[1] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'M');
+            assert_eq!(f.value, "3/4");
+        }
+        other => panic!("Expected InlineField at index 1, got {:?}", other),
+    }
+
+    // Element 2: Chord [FAC]
+    match &tune.body.elements[2] {
+        MusicElement::Chord(chord) => {
+            assert_eq!(chord.notes.len(), 3);
+        }
+        other => panic!("Expected Chord at index 2, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_unclosed_inline_field() {
+    let result = parse_with_diagnostics("X:1\nK:C\n[M:3/4");
+
+    assert!(result.has_errors());
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::UnclosedInlineField),
+        "Expected UnclosedInlineField error, got: {:?}",
+        result.diagnostics
+    );
+}
+
+#[test]
+fn test_inline_field_with_complex_value() {
+    // Inline field with a more complex value
+    let tune = parse("X:1\nK:C\n[Q:1/4=120]|");
+
+    match &tune.body.elements[0] {
+        MusicElement::InlineField(f) => {
+            assert_eq!(f.label, 'Q');
+            assert_eq!(f.value, "1/4=120");
+        }
+        other => panic!("Expected InlineField, got {:?}", other),
+    }
+}

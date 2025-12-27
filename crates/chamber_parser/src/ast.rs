@@ -83,6 +83,7 @@ pub enum MusicElement {
     GraceNotes(GraceNotes),
     BrokenRhythm(BrokenRhythm),
     Tie(Tie),
+    InlineField(InlineField),
 }
 
 /// A single note.
@@ -234,5 +235,15 @@ pub struct BrokenRhythm {
 /// A tie between notes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tie {
+    pub range: TextRange,
+}
+
+/// An inline field within the music body (e.g., [M:3/4], [K:G]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InlineField {
+    /// Field label (M, K, L, Q, etc.)
+    pub label: char,
+    /// Field value as text
+    pub value: String,
     pub range: TextRange,
 }
