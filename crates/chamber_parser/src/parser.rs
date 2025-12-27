@@ -4,6 +4,105 @@ use chamber_text_size::{TextRange, TextSize};
 
 use crate::ast::*;
 
+/// Standard ABC 2.1 decoration names.
+/// Reference: ABC notation standard 2.1
+const STANDARD_DECORATIONS: &[&str] = &[
+    // Dynamics
+    "p", "pp", "ppp", "pppp",
+    "f", "ff", "fff", "ffff",
+    "mp", "mf", "sfz",
+    "crescendo", "decrescendo",
+    "crescendo(", "crescendo)",
+    "decrescendo(", "decrescendo)",
+    "<", ">", "<(", "<)", ">(", ">)",
+    // Articulation
+    "accent", "emphasis",
+    "staccato", "staccatissimo",
+    "tenuto", "marcato",
+    "fermata", "shortfermata", "longfermata",
+    "breath",
+    // Ornaments
+    "trill", "trill(",  "trill)",
+    "mordent", "pralltriller",
+    "lowermordent", "uppermordent",
+    "turn", "turnx", "invertedturn",
+    "roll",
+    "snap", "slide",
+    // Bowing / Instrumental
+    "upbow", "downbow",
+    "open", "plus", "wedge", "thumb",
+    "arpeggio",
+    // Segno / Coda
+    "coda", "segno",
+    "D.S.", "D.C.",
+    "fine", "dacoda", "dacapo",
+    // Phrase marks
+    "shortphrase", "mediumphrase", "longphrase",
+    // Fingering
+    "0", "1", "2", "3", "4", "5",
+    // Other
+    "invertedfermata",
+    "repeatbar", "repeatbar2",
+    "upfermata", "downfermata",
+];
+
+/// Calculates the Levenshtein distance between two strings.
+fn levenshtein_distance(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let m = a_chars.len();
+    let n = b_chars.len();
+
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr = vec![0; n + 1];
+
+    for i in 1..=m {
+        curr[0] = i;
+        for j in 1..=n {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1)
+                .min(curr[j - 1] + 1)
+                .min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[n]
+}
+
+/// Finds the closest matching decoration name for a typo.
+fn suggest_decoration(name: &str) -> Option<&'static str> {
+    let name_lower = name.to_lowercase();
+    let mut best_match: Option<&'static str> = None;
+    let mut best_distance = usize::MAX;
+
+    for &standard in STANDARD_DECORATIONS {
+        let distance = levenshtein_distance(&name_lower, &standard.to_lowercase());
+
+        // Only suggest if distance is reasonable (< 3 for short names, < half length for longer)
+        let max_distance = if name.len() <= 4 { 2 } else { name.len() / 2 };
+
+        if distance < best_distance && distance <= max_distance {
+            best_distance = distance;
+            best_match = Some(standard);
+        }
+    }
+
+    best_match
+}
+
+/// Checks if a decoration name is valid.
+fn is_valid_decoration(name: &str) -> bool {
+    STANDARD_DECORATIONS.iter().any(|&d| d.eq_ignore_ascii_case(name))
+}
+
 /// Result of parsing, containing the AST and any diagnostics.
 #[derive(Debug, Clone)]
 pub struct ParseResult {
@@ -712,6 +811,21 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                 } else {
                     String::new()
                 };
+
+                // M014: Validate decoration name
+                if !name.is_empty() && !is_valid_decoration(&name) {
+                    let message = if let Some(suggestion) = suggest_decoration(&name) {
+                        format!("unknown decoration '{}', did you mean '{}'?", name, suggestion)
+                    } else {
+                        format!("unknown decoration '{}'", name)
+                    };
+
+                    self.report(Diagnostic::error(
+                        DiagnosticCode::UnknownDecoration,
+                        decoration_token.range,
+                        message,
+                    ));
+                }
 
                 decorations.push(Decoration::new(name, decoration_token.range));
             } else {

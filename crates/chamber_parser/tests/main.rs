@@ -868,3 +868,73 @@ fn test_notes_with_and_without_decorations() {
         other => panic!("Expected Note, got {:?}", other),
     }
 }
+
+#[test]
+fn test_unknown_decoration_error() {
+    use chamber_diagnostics::DiagnosticCode;
+
+    let result = parse_with_diagnostics("X:1\nK:C\n!trillx!C");
+
+    // Should report an error for unknown decoration
+    let errors: Vec<_> = result.diagnostics.iter()
+        .filter(|d| d.code == DiagnosticCode::UnknownDecoration)
+        .collect();
+
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("trillx"));
+    assert!(errors[0].message.contains("trill")); // Should suggest 'trill'
+}
+
+#[test]
+fn test_unknown_decoration_no_suggestion() {
+    use chamber_diagnostics::DiagnosticCode;
+
+    let result = parse_with_diagnostics("X:1\nK:C\n!xyzabc!C");
+
+    // Should report an error for unknown decoration
+    let errors: Vec<_> = result.diagnostics.iter()
+        .filter(|d| d.code == DiagnosticCode::UnknownDecoration)
+        .collect();
+
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains("xyzabc"));
+    // No suggestion for completely unknown decoration
+    assert!(!errors[0].message.contains("did you mean"));
+}
+
+#[test]
+fn test_valid_decorations_no_error() {
+    use chamber_diagnostics::DiagnosticCode;
+
+    let decorations = [
+        "trill", "fermata", "accent", "staccato", "tenuto",
+        "mordent", "turn", "roll", "upbow", "downbow",
+        "p", "f", "ff", "pp", "mp", "mf", "sfz",
+        "coda", "segno", "fine",
+    ];
+
+    for deco in decorations {
+        let source = format!("X:1\nK:C\n!{}!C", deco);
+        let result = parse_with_diagnostics(&source);
+
+        let errors: Vec<_> = result.diagnostics.iter()
+            .filter(|d| d.code == DiagnosticCode::UnknownDecoration)
+            .collect();
+
+        assert!(errors.is_empty(), "Expected no error for decoration '{}', got: {:?}", deco, errors);
+    }
+}
+
+#[test]
+fn test_decoration_case_insensitive() {
+    use chamber_diagnostics::DiagnosticCode;
+
+    // Test that decorations are case-insensitive
+    let result = parse_with_diagnostics("X:1\nK:C\n!TRILL!C !Fermata!D");
+
+    let errors: Vec<_> = result.diagnostics.iter()
+        .filter(|d| d.code == DiagnosticCode::UnknownDecoration)
+        .collect();
+
+    assert!(errors.is_empty(), "Decorations should be case-insensitive");
+}
