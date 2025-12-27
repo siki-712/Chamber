@@ -1,29 +1,76 @@
+use chamber_diagnostics::{Diagnostic, DiagnosticBag, DiagnosticCode, DiagnosticSink};
 use chamber_lexer::{token_text, Lexer, Token, TokenKind};
 use chamber_text_size::{TextRange, TextSize};
 
 use crate::ast::*;
 
+/// Result of parsing, containing the AST and any diagnostics.
+#[derive(Debug, Clone)]
+pub struct ParseResult {
+    /// The parsed tune (may be incomplete if errors occurred).
+    pub tune: Tune,
+    /// Diagnostics collected during parsing.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+impl ParseResult {
+    /// Returns true if there are any errors.
+    pub fn has_errors(&self) -> bool {
+        self.diagnostics.iter().any(|d| d.is_error())
+    }
+
+    /// Returns true if there are any warnings.
+    pub fn has_warnings(&self) -> bool {
+        self.diagnostics.iter().any(|d| d.is_warning())
+    }
+}
+
 /// Parser for ABC notation.
-pub struct Parser<'a> {
+pub struct Parser<'a, S: DiagnosticSink = DiagnosticBag> {
     source: &'a str,
     tokens: Vec<Token>,
     position: usize,
+    diagnostics: Option<S>,
 }
 
-impl<'a> Parser<'a> {
-    /// Creates a new parser for the given source text.
+impl<'a> Parser<'a, DiagnosticBag> {
+    /// Creates a new parser for the given source text (no diagnostics).
     pub fn new(source: &'a str) -> Self {
         let tokens = Lexer::new(source).tokenize();
         Self {
             source,
             tokens,
             position: 0,
+            diagnostics: None,
+        }
+    }
+}
+
+impl<'a, S: DiagnosticSink> Parser<'a, S> {
+    /// Creates a new parser with a diagnostic sink.
+    pub fn with_diagnostics(source: &'a str, diagnostics: S) -> Self {
+        let tokens = Lexer::new(source).tokenize();
+        Self {
+            source,
+            tokens,
+            position: 0,
+            diagnostics: Some(diagnostics),
+        }
+    }
+
+    /// Reports a diagnostic if a sink is available.
+    fn report(&mut self, diagnostic: Diagnostic) {
+        if let Some(ref mut sink) = self.diagnostics {
+            sink.report(diagnostic);
         }
     }
 
     /// Parses the source into a Tune AST.
-    pub fn parse(mut self) -> Tune {
+    pub fn parse(&mut self) -> Tune {
         let start = self.current_position();
+
+        // Handle any initial error tokens
+        self.handle_error_tokens();
 
         let header = self.parse_header();
         let body = self.parse_body();
@@ -37,12 +84,26 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Handles any error tokens at the current position.
+    fn handle_error_tokens(&mut self) {
+        while self.check(TokenKind::Error) {
+            let token = self.advance().unwrap();
+            let text = self.token_text(&token);
+            self.report(Diagnostic::error(
+                DiagnosticCode::UnexpectedCharacter,
+                token.range,
+                format!("unexpected character '{}'", text.chars().next().unwrap_or('?')),
+            ));
+        }
+    }
+
     fn parse_header(&mut self) -> Header {
         let start = self.current_position();
         let mut fields = Vec::new();
 
         while !self.is_at_end() {
             self.skip_trivia();
+            self.handle_error_tokens();
 
             // Check if we're still in header (field label followed by colon)
             if self.check(TokenKind::FieldLabel) {
@@ -107,6 +168,38 @@ impl<'a> Parser<'a> {
 
         while !self.is_at_end() {
             self.skip_trivia();
+            self.handle_error_tokens();
+
+            // Handle unexpected closing brackets
+            if self.check(TokenKind::RightBracket) {
+                let token = self.advance().unwrap();
+                self.report(Diagnostic::error(
+                    DiagnosticCode::UnexpectedClosingBracket,
+                    token.range,
+                    "unexpected ']' without matching '['",
+                ));
+                continue;
+            }
+
+            if self.check(TokenKind::RightParen) {
+                let token = self.advance().unwrap();
+                self.report(Diagnostic::error(
+                    DiagnosticCode::UnexpectedClosingParen,
+                    token.range,
+                    "unexpected ')' without matching '('",
+                ));
+                continue;
+            }
+
+            if self.check(TokenKind::RightBrace) {
+                let token = self.advance().unwrap();
+                self.report(Diagnostic::error(
+                    DiagnosticCode::UnexpectedClosingBrace,
+                    token.range,
+                    "unexpected '}' without matching '{'",
+                ));
+                continue;
+            }
 
             if let Some(element) = self.parse_music_element() {
                 elements.push(element);
@@ -134,34 +227,20 @@ impl<'a> Parser<'a> {
             TokenKind::Sharp | TokenKind::Flat | TokenKind::Natural => {
                 self.parse_note().map(MusicElement::Note)
             }
-            TokenKind::Note => {
-                self.parse_note().map(MusicElement::Note)
-            }
-            TokenKind::Rest => {
-                self.parse_rest().map(MusicElement::Rest)
-            }
-            TokenKind::Bar | TokenKind::DoubleBar | TokenKind::RepeatStart
-            | TokenKind::RepeatEnd | TokenKind::ThinThickBar | TokenKind::ThickThinBar => {
-                self.parse_bar_line().map(MusicElement::BarLine)
-            }
-            TokenKind::LeftBracket => {
-                self.parse_chord().map(MusicElement::Chord)
-            }
-            TokenKind::Tuplet => {
-                self.parse_tuplet().map(MusicElement::Tuplet)
-            }
-            TokenKind::LeftParen => {
-                self.parse_slur().map(MusicElement::Slur)
-            }
-            TokenKind::LeftBrace => {
-                self.parse_grace_notes().map(MusicElement::GraceNotes)
-            }
-            TokenKind::BrokenRhythm => {
-                self.parse_broken_rhythm().map(MusicElement::BrokenRhythm)
-            }
-            TokenKind::Tie => {
-                self.parse_tie().map(MusicElement::Tie)
-            }
+            TokenKind::Note => self.parse_note().map(MusicElement::Note),
+            TokenKind::Rest => self.parse_rest().map(MusicElement::Rest),
+            TokenKind::Bar
+            | TokenKind::DoubleBar
+            | TokenKind::RepeatStart
+            | TokenKind::RepeatEnd
+            | TokenKind::ThinThickBar
+            | TokenKind::ThickThinBar => self.parse_bar_line().map(MusicElement::BarLine),
+            TokenKind::LeftBracket => self.parse_chord().map(MusicElement::Chord),
+            TokenKind::Tuplet => self.parse_tuplet().map(MusicElement::Tuplet),
+            TokenKind::LeftParen => self.parse_slur().map(MusicElement::Slur),
+            TokenKind::LeftBrace => self.parse_grace_notes().map(MusicElement::GraceNotes),
+            TokenKind::BrokenRhythm => self.parse_broken_rhythm().map(MusicElement::BrokenRhythm),
+            TokenKind::Tie => self.parse_tie().map(MusicElement::Tie),
             TokenKind::Newline => {
                 self.advance();
                 None
@@ -327,6 +406,7 @@ impl<'a> Parser<'a> {
 
     fn parse_chord(&mut self) -> Option<Chord> {
         let start = self.current_position();
+        let open_bracket_range = self.peek()?.range;
 
         // Consume [
         if !self.check(TokenKind::LeftBracket) {
@@ -337,16 +417,47 @@ impl<'a> Parser<'a> {
         // Parse notes until ]
         let mut notes = Vec::new();
         while !self.is_at_end() && !self.check(TokenKind::RightBracket) {
+            // Handle error tokens inside chord
+            if self.check(TokenKind::Error) {
+                self.handle_error_tokens();
+                continue;
+            }
+
             if let Some(note) = self.parse_note() {
                 notes.push(note);
             } else {
-                break;
+                // Skip to recovery point (] or bar line or newline)
+                if self.is_recovery_point() {
+                    break;
+                }
+                self.advance();
             }
         }
 
-        // Consume ]
-        if self.check(TokenKind::RightBracket) {
+        // Consume ] or report error
+        let closed = if self.check(TokenKind::RightBracket) {
             self.advance();
+            true
+        } else {
+            let end = self.current_position();
+            self.report(
+                Diagnostic::error(
+                    DiagnosticCode::UnclosedChord,
+                    TextRange::new(start, end),
+                    "unclosed chord, missing ']'",
+                )
+                .with_label(open_bracket_range, "opening '[' here"),
+            );
+            false
+        };
+
+        // Warn about empty chord
+        if notes.is_empty() && closed {
+            self.report(Diagnostic::warning(
+                DiagnosticCode::EmptyChord,
+                TextRange::new(start, self.current_position()),
+                "empty chord",
+            ));
         }
 
         // Parse chord duration
@@ -377,11 +488,34 @@ impl<'a> Parser<'a> {
         let mut notes = Vec::new();
         for _ in 0..ratio {
             self.skip_trivia();
+            self.handle_error_tokens();
             if let Some(note) = self.parse_note() {
                 notes.push(note);
             } else {
                 break;
             }
+        }
+
+        // Check if we got enough notes
+        if (notes.len() as u32) < ratio && !notes.is_empty() {
+            let end = self.current_position();
+            self.report(Diagnostic::warning(
+                DiagnosticCode::TupletNoteMismatch,
+                TextRange::new(start, end),
+                format!(
+                    "tuplet expects {} notes but found {}",
+                    ratio,
+                    notes.len()
+                ),
+            ));
+        }
+
+        if notes.is_empty() {
+            self.report(Diagnostic::warning(
+                DiagnosticCode::EmptyTuplet,
+                TextRange::new(start, self.current_position()),
+                "empty tuplet",
+            ));
         }
 
         let end = self.current_position();
@@ -394,6 +528,7 @@ impl<'a> Parser<'a> {
 
     fn parse_slur(&mut self) -> Option<Slur> {
         let start = self.current_position();
+        let open_paren_range = self.peek()?.range;
 
         // Consume (
         if !self.check(TokenKind::LeftParen) {
@@ -404,18 +539,30 @@ impl<'a> Parser<'a> {
         // Parse elements until )
         let mut elements = Vec::new();
         while !self.is_at_end() && !self.check(TokenKind::RightParen) {
+            self.handle_error_tokens();
+
             if let Some(element) = self.parse_music_element() {
                 elements.push(element);
-            } else if self.check(TokenKind::Eof) {
+            } else if self.check(TokenKind::Eof) || self.is_recovery_point() {
                 break;
             } else {
                 self.advance();
             }
         }
 
-        // Consume )
+        // Consume ) or report error
         if self.check(TokenKind::RightParen) {
             self.advance();
+        } else {
+            let end = self.current_position();
+            self.report(
+                Diagnostic::error(
+                    DiagnosticCode::UnclosedSlur,
+                    TextRange::new(start, end),
+                    "unclosed slur, missing ')'",
+                )
+                .with_label(open_paren_range, "opening '(' here"),
+            );
         }
 
         let end = self.current_position();
@@ -427,6 +574,7 @@ impl<'a> Parser<'a> {
 
     fn parse_grace_notes(&mut self) -> Option<GraceNotes> {
         let start = self.current_position();
+        let open_brace_range = self.peek()?.range;
 
         // Consume {
         if !self.check(TokenKind::LeftBrace) {
@@ -437,16 +585,30 @@ impl<'a> Parser<'a> {
         // Parse notes until }
         let mut notes = Vec::new();
         while !self.is_at_end() && !self.check(TokenKind::RightBrace) {
+            self.handle_error_tokens();
+
             if let Some(note) = self.parse_note() {
                 notes.push(note);
-            } else {
+            } else if self.is_recovery_point() {
                 break;
+            } else {
+                self.advance();
             }
         }
 
-        // Consume }
+        // Consume } or report error
         if self.check(TokenKind::RightBrace) {
             self.advance();
+        } else {
+            let end = self.current_position();
+            self.report(
+                Diagnostic::error(
+                    DiagnosticCode::UnclosedGraceNotes,
+                    TextRange::new(start, end),
+                    "unclosed grace notes, missing '}'",
+                )
+                .with_label(open_brace_range, "opening '{' here"),
+            );
         }
 
         let end = self.current_position();
@@ -483,6 +645,21 @@ impl<'a> Parser<'a> {
     }
 
     // Helper methods
+
+    /// Checks if we're at a recovery point (bar line or newline).
+    fn is_recovery_point(&self) -> bool {
+        matches!(
+            self.peek().map(|t| t.kind),
+            Some(
+                TokenKind::Bar
+                    | TokenKind::DoubleBar
+                    | TokenKind::RepeatStart
+                    | TokenKind::RepeatEnd
+                    | TokenKind::Newline
+                    | TokenKind::Eof
+            )
+        )
+    }
 
     fn current_position(&self) -> TextSize {
         self.tokens
@@ -563,4 +740,23 @@ impl<'a> Parser<'a> {
 /// Parses ABC notation source into a Tune AST.
 pub fn parse(source: &str) -> Tune {
     Parser::new(source).parse()
+}
+
+impl Parser<'_, DiagnosticBag> {
+    /// Consumes the parser and returns the diagnostics.
+    pub fn into_diagnostics(self) -> Vec<Diagnostic> {
+        self.diagnostics
+            .map(|bag| bag.into_diagnostics())
+            .unwrap_or_default()
+    }
+}
+
+/// Parses ABC notation source with diagnostics.
+pub fn parse_with_diagnostics(source: &str) -> ParseResult {
+    let bag = DiagnosticBag::new();
+    let mut parser = Parser::with_diagnostics(source, bag);
+    let tune = parser.parse();
+    let diagnostics = parser.into_diagnostics();
+
+    ParseResult { tune, diagnostics }
 }

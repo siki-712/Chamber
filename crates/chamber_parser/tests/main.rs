@@ -312,3 +312,176 @@ CCGG|AAG2|FFEE|DDC2|
     assert_eq!(note_count, 14);
     assert_eq!(bar_count, 4);
 }
+
+// ============================================
+// Diagnostic tests
+// ============================================
+
+use chamber_diagnostics::DiagnosticCode;
+
+#[test]
+fn test_parse_with_diagnostics_no_errors() {
+    let result = parse_with_diagnostics("X:1\nK:C\nCDEF");
+
+    assert!(!result.has_errors());
+    assert!(!result.has_warnings());
+    assert!(result.diagnostics.is_empty());
+}
+
+#[test]
+fn test_unclosed_chord() {
+    let result = parse_with_diagnostics("X:1\nK:C\n[CEG");
+
+    assert!(result.has_errors());
+    assert_eq!(result.diagnostics.len(), 1);
+    assert_eq!(result.diagnostics[0].code, DiagnosticCode::UnclosedChord);
+
+    // The chord should still be parsed with partial content
+    match &result.tune.body.elements[0] {
+        MusicElement::Chord(chord) => {
+            assert_eq!(chord.notes.len(), 3);
+        }
+        _ => panic!("Expected Chord"),
+    }
+}
+
+#[test]
+fn test_unclosed_slur() {
+    let result = parse_with_diagnostics("X:1\nK:C\n(CDE");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnclosedSlur));
+}
+
+#[test]
+fn test_unclosed_grace_notes() {
+    let result = parse_with_diagnostics("X:1\nK:C\n{g");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnclosedGraceNotes));
+}
+
+#[test]
+fn test_unexpected_closing_bracket() {
+    let result = parse_with_diagnostics("X:1\nK:C\nCDE]F");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnexpectedClosingBracket));
+}
+
+#[test]
+fn test_unexpected_closing_paren() {
+    let result = parse_with_diagnostics("X:1\nK:C\nCDE)F");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnexpectedClosingParen));
+}
+
+#[test]
+fn test_unexpected_closing_brace() {
+    let result = parse_with_diagnostics("X:1\nK:C\nCDE}F");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnexpectedClosingBrace));
+}
+
+#[test]
+fn test_unexpected_character() {
+    let result = parse_with_diagnostics("X:1\nK:C\nC@D#E");
+
+    assert!(result.has_errors());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnexpectedCharacter));
+}
+
+#[test]
+fn test_empty_chord_warning() {
+    let result = parse_with_diagnostics("X:1\nK:C\n[]");
+
+    assert!(result.has_warnings());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::EmptyChord));
+}
+
+#[test]
+fn test_empty_tuplet_warning() {
+    let result = parse_with_diagnostics("X:1\nK:C\n(3|");
+
+    assert!(result.has_warnings());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::EmptyTuplet));
+}
+
+#[test]
+fn test_tuplet_note_mismatch_warning() {
+    let result = parse_with_diagnostics("X:1\nK:C\n(3CD|");
+
+    assert!(result.has_warnings());
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::TupletNoteMismatch));
+}
+
+#[test]
+fn test_error_recovery_at_barline() {
+    // Parser should recover at bar line when chord is unclosed
+    let result = parse_with_diagnostics("X:1\nK:C\n[CEG\n|DEF");
+
+    assert!(result.has_errors());
+
+    // Should have an unclosed chord error
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnclosedChord));
+
+    // Should have parsed the chord with the notes before the newline
+    let has_chord = result
+        .tune
+        .body
+        .elements
+        .iter()
+        .any(|e| matches!(e, MusicElement::Chord(_)));
+    assert!(has_chord, "Should have parsed a chord");
+}
+
+#[test]
+fn test_multiple_unexpected_chars() {
+    // Multiple unexpected characters should generate multiple diagnostics
+    let result = parse_with_diagnostics("X:1\nK:C\nC@D#E");
+
+    // Should have at least 2 unexpected character errors
+    let unexpected_count = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == DiagnosticCode::UnexpectedCharacter)
+        .count();
+
+    assert!(
+        unexpected_count >= 2,
+        "Expected at least 2 unexpected character errors, got {}",
+        unexpected_count
+    );
+}
