@@ -34,6 +34,14 @@ pub enum DiagnosticCode {
     InvalidUnitNoteLength,
     /// H008: Invalid key signature.
     InvalidKeySignature,
+    /// H009: Missing title field (T:).
+    MissingTitle,
+    /// H010: Empty title field.
+    EmptyTitle,
+    /// H011: Empty reference number field.
+    EmptyReferenceNumber,
+    /// H012: Invalid reference number (not a number).
+    InvalidReferenceNumber,
 
     // =========================================
     // Music body errors (M001-M099)
@@ -96,6 +104,10 @@ impl DiagnosticCode {
             DiagnosticCode::InvalidTempo => "H006",
             DiagnosticCode::InvalidUnitNoteLength => "H007",
             DiagnosticCode::InvalidKeySignature => "H008",
+            DiagnosticCode::MissingTitle => "H009",
+            DiagnosticCode::EmptyTitle => "H010",
+            DiagnosticCode::EmptyReferenceNumber => "H011",
+            DiagnosticCode::InvalidReferenceNumber => "H012",
 
             // Music
             DiagnosticCode::UnclosedChord => "M001",
@@ -124,7 +136,14 @@ impl DiagnosticCode {
     /// Returns the default severity for this diagnostic.
     pub fn default_severity(&self) -> Severity {
         match self {
-            DiagnosticCode::UnusualOctave | DiagnosticCode::SuspiciousDuration => Severity::Warning,
+            DiagnosticCode::UnusualOctave
+            | DiagnosticCode::SuspiciousDuration
+            | DiagnosticCode::MissingTitle
+            | DiagnosticCode::EmptyTitle
+            | DiagnosticCode::EmptyChord
+            | DiagnosticCode::EmptyTuplet
+            | DiagnosticCode::TupletNoteMismatch
+            | DiagnosticCode::InvalidFieldOrder => Severity::Warning,
             _ => Severity::Error,
         }
     }
@@ -144,6 +163,10 @@ impl DiagnosticCode {
             DiagnosticCode::InvalidTempo => "invalid tempo value",
             DiagnosticCode::InvalidUnitNoteLength => "invalid unit note length",
             DiagnosticCode::InvalidKeySignature => "invalid key signature",
+            DiagnosticCode::MissingTitle => "missing title field (T:)",
+            DiagnosticCode::EmptyTitle => "empty title field",
+            DiagnosticCode::EmptyReferenceNumber => "empty reference number field",
+            DiagnosticCode::InvalidReferenceNumber => "invalid reference number (must be a positive integer)",
 
             // Music
             DiagnosticCode::UnclosedChord => "unclosed chord, missing ']'",

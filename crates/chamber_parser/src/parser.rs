@@ -73,6 +73,7 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         self.handle_error_tokens();
 
         let header = self.parse_header();
+        self.validate_header(&header);
         let body = self.parse_body();
 
         let end = self.current_position();
@@ -81,6 +82,94 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             header,
             body,
             range: TextRange::new(start, end),
+        }
+    }
+
+    /// Validates the header and reports any diagnostics.
+    fn validate_header(&mut self, header: &Header) {
+        let fields = &header.fields;
+
+        // Check for required fields
+        let x_field = fields
+            .iter()
+            .find(|f| f.kind == HeaderFieldKind::ReferenceNumber);
+        let k_field = fields.iter().find(|f| f.kind == HeaderFieldKind::Key);
+        let t_field = fields.iter().find(|f| f.kind == HeaderFieldKind::Title);
+
+        // H001: Missing X:
+        if x_field.is_none() {
+            self.report(Diagnostic::error(
+                DiagnosticCode::MissingReferenceNumber,
+                header.range,
+                "missing reference number field (X:)",
+            ));
+        }
+
+        // H002: Missing K:
+        if k_field.is_none() {
+            self.report(Diagnostic::error(
+                DiagnosticCode::MissingKeyField,
+                header.range,
+                "missing key field (K:)",
+            ));
+        }
+
+        // H009: Missing T: (warning)
+        if t_field.is_none() {
+            self.report(Diagnostic::warning(
+                DiagnosticCode::MissingTitle,
+                header.range,
+                "missing title field (T:)",
+            ));
+        }
+
+        // Validate field values
+        for field in fields {
+            match field.kind {
+                HeaderFieldKind::ReferenceNumber => {
+                    let value = field.value.trim();
+                    if value.is_empty() {
+                        // H011: Empty X:
+                        self.report(Diagnostic::error(
+                            DiagnosticCode::EmptyReferenceNumber,
+                            field.range,
+                            "empty reference number field",
+                        ));
+                    } else if value.parse::<u32>().is_err() {
+                        // H012: Invalid X: value
+                        self.report(Diagnostic::error(
+                            DiagnosticCode::InvalidReferenceNumber,
+                            field.range,
+                            format!(
+                                "invalid reference number '{}' (must be a positive integer)",
+                                value
+                            ),
+                        ));
+                    }
+                }
+                HeaderFieldKind::Title => {
+                    if field.value.trim().is_empty() {
+                        // H010: Empty T:
+                        self.report(Diagnostic::warning(
+                            DiagnosticCode::EmptyTitle,
+                            field.range,
+                            "empty title field",
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // H004: Check field order (X: should be first)
+        if let Some(first) = fields.first() {
+            if first.kind != HeaderFieldKind::ReferenceNumber {
+                self.report(Diagnostic::warning(
+                    DiagnosticCode::InvalidFieldOrder,
+                    first.range,
+                    "X: (reference number) should be the first field in the header",
+                ));
+            }
         }
     }
 

@@ -61,19 +61,26 @@ fn unclosed_slur_then_unclosed_chord() {
 
 #[test]
 fn triple_unclosed_structures() {
-    let result = parse_with_diagnostics("X:1\nK:C\n[CEG\n(ABC\n{def");
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\n[CEG\n(ABC\n{def");
+
+    // Should have 3 unclosed errors (plus no header warnings since T: is present)
+    let error_codes: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.is_error())
+        .map(|d| d.code)
+        .collect();
 
     assert_eq!(
-        result.diagnostics.len(),
+        error_codes.len(),
         3,
         "Expected 3 errors, got: {:?}",
-        result.diagnostics
+        error_codes
     );
 
-    let codes: Vec<_> = result.diagnostics.iter().map(|d| d.code).collect();
-    assert!(codes.contains(&DiagnosticCode::UnclosedChord));
-    assert!(codes.contains(&DiagnosticCode::UnclosedSlur));
-    assert!(codes.contains(&DiagnosticCode::UnclosedGraceNotes));
+    assert!(error_codes.contains(&DiagnosticCode::UnclosedChord));
+    assert!(error_codes.contains(&DiagnosticCode::UnclosedSlur));
+    assert!(error_codes.contains(&DiagnosticCode::UnclosedGraceNotes));
 }
 
 // ============================================

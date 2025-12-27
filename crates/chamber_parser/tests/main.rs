@@ -321,7 +321,7 @@ use chamber_diagnostics::DiagnosticCode;
 
 #[test]
 fn test_parse_with_diagnostics_no_errors() {
-    let result = parse_with_diagnostics("X:1\nK:C\nCDEF");
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\nCDEF");
 
     assert!(!result.has_errors());
     assert!(!result.has_warnings());
@@ -330,7 +330,7 @@ fn test_parse_with_diagnostics_no_errors() {
 
 #[test]
 fn test_unclosed_chord() {
-    let result = parse_with_diagnostics("X:1\nK:C\n[CEG");
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\n[CEG");
 
     assert!(result.has_errors());
     assert_eq!(result.diagnostics.len(), 1);
