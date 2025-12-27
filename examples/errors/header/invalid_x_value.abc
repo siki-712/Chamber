@@ -1,0 +1,5 @@
+X:abc
+T:Non-numeric X
+K:C
+% H012: Invalid reference number (not numeric)
+CDEF|

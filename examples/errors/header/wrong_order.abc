@@ -1,0 +1,6 @@
+T:Wrong Order
+X:1
+M:4/4
+K:C
+% H004: Invalid field order (X: should be first)
+CDEF|

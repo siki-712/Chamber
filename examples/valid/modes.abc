@@ -1,0 +1,13 @@
+X:1
+T:Dorian Mode Example
+M:4/4
+L:1/8
+K:Ddor
+DEFG A2 AG|FEDE D4|
+
+X:2
+T:Mixolydian Example
+M:4/4
+L:1/8
+K:Gmix
+GABG cBAG|F2 EF G4|
