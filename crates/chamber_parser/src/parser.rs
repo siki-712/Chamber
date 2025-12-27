@@ -78,6 +78,15 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
 
         let end = self.current_position();
 
+        // S001: EmptyTune - warn if tune has no content
+        if header.fields.is_empty() && body.elements.is_empty() {
+            self.report(Diagnostic::warning(
+                DiagnosticCode::EmptyTune,
+                TextRange::new(start, end),
+                "empty tune (no header or body content)",
+            ));
+        }
+
         Tune {
             header,
             body,
@@ -495,6 +504,27 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             self.skip_trivia();
             self.handle_error_tokens();
 
+            // S002: UnexpectedToken - field label in body (should be in header)
+            if self.check(TokenKind::FieldLabel) {
+                let token = self.advance().unwrap();
+                let label = self.token_text(&token);
+                self.report(Diagnostic::warning(
+                    DiagnosticCode::UnexpectedToken,
+                    token.range,
+                    format!(
+                        "field '{}:' found in music body (should be in header before K:)",
+                        label
+                    ),
+                ));
+                // Skip the rest of this field line
+                self.skip_trivia();
+                if self.check(TokenKind::Colon) {
+                    self.advance();
+                }
+                self.collect_until_newline();
+                continue;
+            }
+
             // Handle unexpected closing brackets
             if self.check(TokenKind::RightBracket) {
                 let token = self.advance().unwrap();
@@ -589,7 +619,19 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         }
 
         let note_text = self.token_text(&token);
-        let (pitch, base_octave) = Pitch::from_char(note_text.chars().next()?)?;
+        let note_char = note_text.chars().next()?;
+        let (pitch, base_octave) = match Pitch::from_char(note_char) {
+            Some(result) => result,
+            None => {
+                // M007: InvalidNoteName
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidNoteName,
+                    token.range,
+                    format!("invalid note name '{}'", note_char),
+                ));
+                return None;
+            }
+        };
 
         // Parse octave modifiers
         let mut octave = base_octave;
@@ -607,8 +649,21 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             }
         }
 
+        // W001: UnusualOctave (very high or very low)
+        if octave > 3 || octave < -2 {
+            self.report(Diagnostic::warning(
+                DiagnosticCode::UnusualOctave,
+                TextRange::new(start, self.current_position()),
+                format!(
+                    "unusual octave {} (notes this {} are rare)",
+                    octave,
+                    if octave > 3 { "high" } else { "low" }
+                ),
+            ));
+        }
+
         // Parse duration
-        let duration = self.parse_duration();
+        let duration = self.parse_duration_with_validation(start);
 
         let end = self.current_position();
         Some(Note {
@@ -653,6 +708,15 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
     }
 
     fn parse_duration(&mut self) -> Option<Duration> {
+        self.parse_duration_internal(None)
+    }
+
+    fn parse_duration_with_validation(&mut self, note_start: TextSize) -> Option<Duration> {
+        self.parse_duration_internal(Some(note_start))
+    }
+
+    fn parse_duration_internal(&mut self, note_start: Option<TextSize>) -> Option<Duration> {
+        let dur_start = self.current_position();
         let mut numerator = 1u32;
         let mut denominator = 1u32;
         let mut has_duration = false;
@@ -676,7 +740,17 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                 let token = self.advance()?;
                 let text = self.token_text(&token);
                 if let Ok(d) = text.parse::<u32>() {
-                    denominator = d;
+                    if d == 0 {
+                        // M009: InvalidDuration - zero denominator
+                        self.report(Diagnostic::error(
+                            DiagnosticCode::InvalidDuration,
+                            TextRange::new(dur_start, self.current_position()),
+                            "invalid duration: denominator cannot be zero",
+                        ));
+                        denominator = 1; // Use 1 as fallback
+                    } else {
+                        denominator = d;
+                    }
                 }
             } else {
                 // Just "/" means /2
@@ -685,6 +759,24 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         }
 
         if has_duration {
+            // W002: SuspiciousDuration - very large duration
+            let effective_duration = numerator as f64 / denominator as f64;
+            if effective_duration >= 16.0 {
+                let range = if let Some(start) = note_start {
+                    TextRange::new(start, self.current_position())
+                } else {
+                    TextRange::new(dur_start, self.current_position())
+                };
+                self.report(Diagnostic::warning(
+                    DiagnosticCode::SuspiciousDuration,
+                    range,
+                    format!(
+                        "suspicious duration {}/{} (very long note)",
+                        numerator, denominator
+                    ),
+                ));
+            }
+
             Some(Duration::new(numerator, denominator))
         } else {
             None

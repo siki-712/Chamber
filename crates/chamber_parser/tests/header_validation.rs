@@ -549,3 +549,60 @@ fn invalid_key_bad_mode() {
         result.diagnostics
     );
 }
+
+// ============================================
+// S001: Empty tune
+// ============================================
+
+#[test]
+fn empty_tune_warning() {
+    let result = parse_with_diagnostics("");
+
+    assert!(result.has_warnings());
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::EmptyTune),
+        "Expected EmptyTune warning, got: {:?}",
+        result.diagnostics
+    );
+}
+
+#[test]
+fn whitespace_only_is_empty_tune() {
+    let result = parse_with_diagnostics("   \n\n   ");
+
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::EmptyTune));
+}
+
+// ============================================
+// S002: Unexpected token
+// ============================================
+
+#[test]
+fn field_in_body_unexpected() {
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\nCDEF\nM:4/4\nGAB");
+
+    assert!(result
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::UnexpectedToken));
+}
+
+#[test]
+fn title_in_body_unexpected() {
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\nCDEF\nT:Another Title\nGAB");
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::UnexpectedToken),
+        "Expected UnexpectedToken, got: {:?}",
+        result.diagnostics
+    );
+}

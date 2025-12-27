@@ -130,8 +130,7 @@ K:Xmaj
 | M005 | UnexpectedClosingParen | Error | `)` without matching `(` |
 | M006 | UnexpectedClosingBrace | Error | `}` without matching `{` |
 | M007 | InvalidNoteName | Error | Invalid note character |
-| M008 | InvalidAccidental | Error | Invalid accidental syntax |
-| M009 | InvalidDuration | Error | Invalid duration syntax |
+| M009 | InvalidDuration | Error | Invalid duration (e.g., `/0`) |
 | M010 | EmptyChord | Warning | `[]` with no notes |
 | M011 | EmptyTuplet | Warning | Tuplet with no notes |
 | M012 | TupletNoteMismatch | Warning | Tuplet note count differs from ratio |
@@ -160,6 +159,11 @@ CDE]F
 
 X:1
 K:C
+C/0
+  ^ M009: invalid duration: denominator cannot be zero
+
+X:1
+K:C
 []
 ^ M010: empty chord
 
@@ -171,12 +175,25 @@ K:C
 
 ---
 
-## Structural Errors (S001-S099)
+## Structural Warnings (S001-S099)
 
 | Code | Name | Severity | Description |
 |------|------|----------|-------------|
-| S001 | EmptyTune | Error | No content in tune |
-| S002 | UnexpectedToken | Error | Token not expected at this position |
+| S001 | EmptyTune | Warning | No content in tune (empty file) |
+| S002 | UnexpectedToken | Warning | Token not expected at this position |
+
+**Examples:**
+```abc
+(empty file)
+^ S001: empty tune (no header or body content)
+
+X:1
+T:Test
+K:C
+CDEF
+M:4/4
+   ^ S002: field 'M:' found in music body (should be in header before K:)
+```
 
 ---
 
@@ -204,6 +221,8 @@ C128
 
 ## Implementation Status
 
+All diagnostic codes are implemented and tested.
+
 | Code | Implemented | Tested |
 |------|-------------|--------|
 | L001 | Yes | Yes |
@@ -225,13 +244,12 @@ C128
 | M004 | Yes | Yes |
 | M005 | Yes | Yes |
 | M006 | Yes | Yes |
-| M007 | No | - |
-| M008 | No | - |
-| M009 | No | - |
+| M007 | Yes | Yes |
+| M009 | Yes | Yes |
 | M010 | Yes | Yes |
 | M011 | Yes | Yes |
 | M012 | Yes | Yes |
-| S001 | No | - |
-| S002 | No | - |
-| W001 | No | - |
-| W002 | No | - |
+| S001 | Yes | Yes |
+| S002 | Yes | Yes |
+| W001 | Yes | Yes |
+| W002 | Yes | Yes |

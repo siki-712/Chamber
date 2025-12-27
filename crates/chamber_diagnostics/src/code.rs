@@ -60,8 +60,6 @@ pub enum DiagnosticCode {
     UnexpectedClosingBrace,
     /// M007: Invalid note name.
     InvalidNoteName,
-    /// M008: Invalid accidental.
-    InvalidAccidental,
     /// M009: Invalid duration.
     InvalidDuration,
     /// M010: Empty chord.
@@ -117,7 +115,6 @@ impl DiagnosticCode {
             DiagnosticCode::UnexpectedClosingParen => "M005",
             DiagnosticCode::UnexpectedClosingBrace => "M006",
             DiagnosticCode::InvalidNoteName => "M007",
-            DiagnosticCode::InvalidAccidental => "M008",
             DiagnosticCode::InvalidDuration => "M009",
             DiagnosticCode::EmptyChord => "M010",
             DiagnosticCode::EmptyTuplet => "M011",
@@ -143,7 +140,9 @@ impl DiagnosticCode {
             | DiagnosticCode::EmptyChord
             | DiagnosticCode::EmptyTuplet
             | DiagnosticCode::TupletNoteMismatch
-            | DiagnosticCode::InvalidFieldOrder => Severity::Warning,
+            | DiagnosticCode::InvalidFieldOrder
+            | DiagnosticCode::EmptyTune
+            | DiagnosticCode::UnexpectedToken => Severity::Warning,
             _ => Severity::Error,
         }
     }
@@ -176,7 +175,6 @@ impl DiagnosticCode {
             DiagnosticCode::UnexpectedClosingParen => "unexpected ')' without matching '('",
             DiagnosticCode::UnexpectedClosingBrace => "unexpected '}' without matching '{'",
             DiagnosticCode::InvalidNoteName => "invalid note name",
-            DiagnosticCode::InvalidAccidental => "invalid accidental",
             DiagnosticCode::InvalidDuration => "invalid duration",
             DiagnosticCode::EmptyChord => "empty chord",
             DiagnosticCode::EmptyTuplet => "empty tuplet",
