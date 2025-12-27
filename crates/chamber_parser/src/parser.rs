@@ -90,19 +90,34 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         let fields = &header.fields;
 
         // Check for required fields
-        let x_field = fields
+        let x_fields: Vec<_> = fields
             .iter()
-            .find(|f| f.kind == HeaderFieldKind::ReferenceNumber);
+            .filter(|f| f.kind == HeaderFieldKind::ReferenceNumber)
+            .collect();
         let k_field = fields.iter().find(|f| f.kind == HeaderFieldKind::Key);
         let t_field = fields.iter().find(|f| f.kind == HeaderFieldKind::Title);
 
         // H001: Missing X:
-        if x_field.is_none() {
+        if x_fields.is_empty() {
             self.report(Diagnostic::error(
                 DiagnosticCode::MissingReferenceNumber,
                 header.range,
                 "missing reference number field (X:)",
             ));
+        }
+
+        // H003: Duplicate X:
+        if x_fields.len() > 1 {
+            for dup in &x_fields[1..] {
+                self.report(
+                    Diagnostic::error(
+                        DiagnosticCode::DuplicateReferenceNumber,
+                        dup.range,
+                        "duplicate reference number field",
+                    )
+                    .with_label(x_fields[0].range, "first X: defined here"),
+                );
+            }
         }
 
         // H002: Missing K:
@@ -127,25 +142,7 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         for field in fields {
             match field.kind {
                 HeaderFieldKind::ReferenceNumber => {
-                    let value = field.value.trim();
-                    if value.is_empty() {
-                        // H011: Empty X:
-                        self.report(Diagnostic::error(
-                            DiagnosticCode::EmptyReferenceNumber,
-                            field.range,
-                            "empty reference number field",
-                        ));
-                    } else if value.parse::<u32>().is_err() {
-                        // H012: Invalid X: value
-                        self.report(Diagnostic::error(
-                            DiagnosticCode::InvalidReferenceNumber,
-                            field.range,
-                            format!(
-                                "invalid reference number '{}' (must be a positive integer)",
-                                value
-                            ),
-                        ));
-                    }
+                    self.validate_reference_number(field);
                 }
                 HeaderFieldKind::Title => {
                     if field.value.trim().is_empty() {
@@ -156,6 +153,18 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                             "empty title field",
                         ));
                     }
+                }
+                HeaderFieldKind::Meter => {
+                    self.validate_meter(field);
+                }
+                HeaderFieldKind::Tempo => {
+                    self.validate_tempo(field);
+                }
+                HeaderFieldKind::UnitNoteLength => {
+                    self.validate_unit_note_length(field);
+                }
+                HeaderFieldKind::Key => {
+                    self.validate_key(field);
                 }
                 _ => {}
             }
@@ -168,6 +177,233 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
                     DiagnosticCode::InvalidFieldOrder,
                     first.range,
                     "X: (reference number) should be the first field in the header",
+                ));
+            }
+        }
+    }
+
+    /// H011, H012: Validate reference number field
+    fn validate_reference_number(&mut self, field: &HeaderField) {
+        let value = field.value.trim();
+        if value.is_empty() {
+            self.report(Diagnostic::error(
+                DiagnosticCode::EmptyReferenceNumber,
+                field.range,
+                "empty reference number field",
+            ));
+        } else if value.parse::<u32>().is_err() {
+            self.report(Diagnostic::error(
+                DiagnosticCode::InvalidReferenceNumber,
+                field.range,
+                format!(
+                    "invalid reference number '{}' (must be a positive integer)",
+                    value
+                ),
+            ));
+        }
+    }
+
+    /// H005: Validate meter field (M:)
+    /// Valid formats: 4/4, 3/4, 6/8, C, C|, none
+    fn validate_meter(&mut self, field: &HeaderField) {
+        let value = field.value.trim();
+        if value.is_empty() {
+            return; // Empty is allowed (uses default)
+        }
+
+        // Special values
+        if matches!(value, "C" | "C|" | "none") {
+            return;
+        }
+
+        // Fraction format: num/denom
+        if let Some((num, denom)) = value.split_once('/') {
+            let num_ok = num.trim().parse::<u32>().is_ok();
+            let denom_ok = denom.trim().parse::<u32>().map(|d| d > 0).unwrap_or(false);
+
+            if !num_ok || !denom_ok {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidMeterValue,
+                    field.range,
+                    format!("invalid meter value '{}' (expected format: 4/4, 3/4, C, C|)", value),
+                ));
+            }
+        } else {
+            self.report(Diagnostic::error(
+                DiagnosticCode::InvalidMeterValue,
+                field.range,
+                format!("invalid meter value '{}' (expected format: 4/4, 3/4, C, C|)", value),
+            ));
+        }
+    }
+
+    /// H006: Validate tempo field (Q:)
+    /// Valid formats: 120, 1/4=120, "Allegro" 1/4=120, 3/8=120
+    fn validate_tempo(&mut self, field: &HeaderField) {
+        let value = field.value.trim();
+        if value.is_empty() {
+            return; // Empty is allowed
+        }
+
+        // Remove quoted tempo name if present
+        let value = if value.starts_with('"') {
+            if let Some(end_quote) = value[1..].find('"') {
+                value[end_quote + 2..].trim()
+            } else {
+                value // malformed, let it fail below
+            }
+        } else {
+            value
+        };
+
+        // If empty after removing name, it's just a tempo name (valid)
+        if value.is_empty() {
+            return;
+        }
+
+        // Check for note=bpm format (1/4=120) or just bpm (120)
+        if let Some((note_part, bpm_part)) = value.split_once('=') {
+            // Validate note length
+            let note_part = note_part.trim();
+            if let Some((num, denom)) = note_part.split_once('/') {
+                let num_ok = num.trim().parse::<u32>().is_ok();
+                let denom_ok = denom.trim().parse::<u32>().map(|d| d > 0).unwrap_or(false);
+                if !num_ok || !denom_ok {
+                    self.report(Diagnostic::error(
+                        DiagnosticCode::InvalidTempo,
+                        field.range,
+                        format!("invalid tempo note length '{}'", note_part),
+                    ));
+                    return;
+                }
+            } else if note_part.parse::<u32>().is_err() {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidTempo,
+                    field.range,
+                    format!("invalid tempo note length '{}'", note_part),
+                ));
+                return;
+            }
+
+            // Validate BPM
+            let bpm_part = bpm_part.trim();
+            if bpm_part.parse::<u32>().is_err() {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidTempo,
+                    field.range,
+                    format!("invalid tempo BPM '{}'", bpm_part),
+                ));
+            }
+        } else {
+            // Just BPM
+            if value.parse::<u32>().is_err() {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidTempo,
+                    field.range,
+                    format!("invalid tempo value '{}' (expected format: 120 or 1/4=120)", value),
+                ));
+            }
+        }
+    }
+
+    /// H007: Validate unit note length field (L:)
+    /// Valid formats: 1/4, 1/8, 1/16
+    fn validate_unit_note_length(&mut self, field: &HeaderField) {
+        let value = field.value.trim();
+        if value.is_empty() {
+            return; // Empty uses default
+        }
+
+        if let Some((num, denom)) = value.split_once('/') {
+            let num_ok = num.trim().parse::<u32>().is_ok();
+            let denom_ok = denom.trim().parse::<u32>().map(|d| d > 0).unwrap_or(false);
+
+            if !num_ok || !denom_ok {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidUnitNoteLength,
+                    field.range,
+                    format!("invalid unit note length '{}' (expected format: 1/4, 1/8)", value),
+                ));
+            }
+        } else {
+            self.report(Diagnostic::error(
+                DiagnosticCode::InvalidUnitNoteLength,
+                field.range,
+                format!("invalid unit note length '{}' (expected format: 1/4, 1/8)", value),
+            ));
+        }
+    }
+
+    /// H008: Validate key field (K:)
+    /// Valid formats: C, G, Am, Dmix, HP, Hp, none, etc.
+    fn validate_key(&mut self, field: &HeaderField) {
+        let value = field.value.trim();
+        if value.is_empty() {
+            self.report(Diagnostic::error(
+                DiagnosticCode::InvalidKeySignature,
+                field.range,
+                "empty key field (K:)",
+            ));
+            return;
+        }
+
+        // Special values
+        if matches!(value, "none" | "HP" | "Hp") {
+            return;
+        }
+
+        let mut chars = value.chars().peekable();
+
+        // First char must be A-G
+        let tonic = match chars.next() {
+            Some(c) if c.is_ascii_uppercase() && ('A'..='G').contains(&c) => c,
+            _ => {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidKeySignature,
+                    field.range,
+                    format!(
+                        "invalid key '{}' (must start with A-G)",
+                        value
+                    ),
+                ));
+                return;
+            }
+        };
+
+        // Check for accidental (# or b)
+        if let Some(&c) = chars.peek() {
+            if c == '#' || c == 'b' {
+                chars.next();
+            }
+        }
+
+        // Rest is mode (optional): m, min, maj, mix, dor, phr, lyd, loc, exp
+        let mode: String = chars.collect();
+        let mode = mode.to_lowercase();
+
+        if !mode.is_empty() {
+            let valid_modes = [
+                "m", "min", "minor",
+                "maj", "major",
+                "mix", "mixolydian",
+                "dor", "dorian",
+                "phr", "phrygian",
+                "lyd", "lydian",
+                "loc", "locrian",
+                "exp", // explicit (no accidentals)
+            ];
+
+            // Check if mode starts with any valid mode
+            let mode_valid = valid_modes.iter().any(|m| mode.starts_with(m));
+
+            if !mode_valid && !mode.chars().all(|c| c.is_whitespace()) {
+                self.report(Diagnostic::error(
+                    DiagnosticCode::InvalidKeySignature,
+                    field.range,
+                    format!(
+                        "invalid key mode '{}' for key {}",
+                        mode, tonic
+                    ),
                 ));
             }
         }

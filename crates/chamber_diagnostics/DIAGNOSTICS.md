@@ -68,6 +68,12 @@ CDEF
 ^ H001: missing reference number field (X:)
 
 X:1
+X:2
+T:Test
+K:C
+   ^ H003: duplicate reference number field
+
+X:1
 K:C
 CDEF
 ^ H009: missing title field (T:)
@@ -86,6 +92,29 @@ T:Test
 X:1
 K:C
 ^ H004: X: should be the first field in header
+
+X:1
+T:Test
+M:allegro
+K:C
+      ^ H005: invalid meter value 'allegro' (expected 4/4, 3/4, C, C|)
+
+X:1
+T:Test
+Q:fast
+K:C
+    ^ H006: invalid tempo value 'fast' (expected 120 or 1/4=120)
+
+X:1
+T:Test
+L:quarter
+K:C
+        ^ H007: invalid unit note length 'quarter' (expected 1/4, 1/8)
+
+X:1
+T:Test
+K:Xmaj
+     ^ H008: invalid key 'Xmaj' (must start with A-G)
 ```
 
 ---
@@ -180,12 +209,12 @@ C128
 | L001 | Yes | Yes |
 | H001 | Yes | Yes |
 | H002 | Yes | Yes |
-| H003 | No | - |
+| H003 | Yes | Yes |
 | H004 | Yes | Yes |
-| H005 | No | - |
-| H006 | No | - |
-| H007 | No | - |
-| H008 | No | - |
+| H005 | Yes | Yes |
+| H006 | Yes | Yes |
+| H007 | Yes | Yes |
+| H008 | Yes | Yes |
 | H009 | Yes | Yes |
 | H010 | Yes | Yes |
 | H011 | Yes | Yes |
