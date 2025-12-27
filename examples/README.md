@@ -10,7 +10,8 @@ examples/
 │   ├── simple.abc
 │   ├── twinkle.abc
 │   ├── modes.abc
-│   └── inline_fields.abc
+│   ├── inline_fields.abc
+│   └── decorations.abc
 ├── errors/          # Files with errors
 │   ├── header/      # Header validation errors (H001-H012)
 │   ├── music/       # Music body errors (M001-M013, L001)

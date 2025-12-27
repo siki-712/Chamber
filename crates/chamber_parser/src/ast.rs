@@ -97,6 +97,8 @@ pub struct Note {
     pub accidental: Option<Accidental>,
     /// Duration as a fraction (numerator, denominator)
     pub duration: Option<Duration>,
+    /// Decorations attached to this note (!trill!, etc.)
+    pub decorations: Vec<Decoration>,
     pub range: TextRange,
 }
 
@@ -144,6 +146,20 @@ pub enum Accidental {
     Natural,
 }
 
+/// A decoration attached to a note (!trill!, +fermata+, etc.).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Decoration {
+    /// The decoration name (e.g., "trill", "fermata", "accent")
+    pub name: String,
+    pub range: TextRange,
+}
+
+impl Decoration {
+    pub fn new(name: String, range: TextRange) -> Self {
+        Self { name, range }
+    }
+}
+
 /// Note duration as a fraction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Duration {
@@ -169,6 +185,8 @@ pub struct Rest {
     /// Whether this is a multi-measure rest (Z vs z)
     pub multi_measure: bool,
     pub duration: Option<Duration>,
+    /// Decorations attached to this rest
+    pub decorations: Vec<Decoration>,
     pub range: TextRange,
 }
 
@@ -177,6 +195,8 @@ pub struct Rest {
 pub struct Chord {
     pub notes: Vec<Note>,
     pub duration: Option<Duration>,
+    /// Decorations attached to this chord (applies to whole chord)
+    pub decorations: Vec<Decoration>,
     pub range: TextRange,
 }
 

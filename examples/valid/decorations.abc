@@ -1,0 +1,16 @@
+X:1
+T:Decoration Examples
+M:4/4
+L:1/8
+K:C
+% Various decorations using ! syntax
+!trill!C2 !fermata!D2 !accent!E2 !staccato!F2 |
+!tenuto!G2 !marcato!A2 !mordent!B2 !turn!c2 |
+% Using + syntax (older style)
++trill+C2 +fermata+D2 +accent+E2 |
+% Decorations on chords
+!accent![CEG]2 !fermata![FAc]2 |
+% Decorations on rests
+!breath!z2 !fermata!z4 |
+% Multiple decorations on one note
+!trill!!fermata!C4 |

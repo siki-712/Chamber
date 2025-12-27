@@ -80,6 +80,8 @@ pub enum TokenKind {
     BrokenRhythm,
     /// Tuplet marker (e.g., (3)
     Tuplet,
+    /// Decoration (!trill!, +fermata+, etc.)
+    Decoration,
 
     // Text and numbers
     /// Plain text content

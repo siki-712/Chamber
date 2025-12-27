@@ -608,12 +608,27 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             TokenKind::LeftBrace => self.parse_grace_notes().map(MusicElement::GraceNotes),
             TokenKind::BrokenRhythm => self.parse_broken_rhythm().map(MusicElement::BrokenRhythm),
             TokenKind::Tie => self.parse_tie().map(MusicElement::Tie),
+            TokenKind::Decoration => {
+                // Look ahead past decorations to find what element follows
+                let element_kind = self.peek_past_decorations();
+                match element_kind {
+                    Some(TokenKind::Note) | Some(TokenKind::Sharp) | Some(TokenKind::Flat) | Some(TokenKind::Natural) => {
+                        self.parse_note().map(MusicElement::Note)
+                    }
+                    Some(TokenKind::Rest) => self.parse_rest().map(MusicElement::Rest),
+                    Some(TokenKind::LeftBracket) => self.parse_chord().map(MusicElement::Chord),
+                    _ => None, // Decoration without valid following element
+                }
+            }
             _ => None,
         }
     }
 
     fn parse_note(&mut self) -> Option<Note> {
         let start = self.current_position();
+
+        // Parse prefix decorations
+        let decorations = self.parse_decorations();
 
         // Parse optional accidental
         let accidental = self.parse_accidental();
@@ -677,8 +692,51 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             octave,
             accidental,
             duration,
+            decorations,
             range: TextRange::new(start, end),
         })
+    }
+
+    /// Parses consecutive decoration tokens (!trill!, +fermata+, etc.)
+    fn parse_decorations(&mut self) -> Vec<Decoration> {
+        let mut decorations = Vec::new();
+
+        while let Some(token) = self.peek() {
+            if token.kind == TokenKind::Decoration {
+                let decoration_token = self.advance().unwrap();
+                let text = self.token_text(&decoration_token);
+
+                // Extract name between delimiters: !trill! -> trill
+                let name = if text.len() >= 2 {
+                    text[1..text.len() - 1].to_string()
+                } else {
+                    String::new()
+                };
+
+                decorations.push(Decoration::new(name, decoration_token.range));
+            } else {
+                break;
+            }
+        }
+
+        decorations
+    }
+
+    /// Peeks ahead past decorations to find the next non-decoration token kind.
+    fn peek_past_decorations(&self) -> Option<TokenKind> {
+        let mut i = self.position;
+
+        // Skip decorations
+        while self.tokens.get(i).map(|t| t.kind) == Some(TokenKind::Decoration) {
+            i += 1;
+        }
+
+        // Skip trivia
+        while self.tokens.get(i).map(|t| t.kind.is_trivia()).unwrap_or(false) {
+            i += 1;
+        }
+
+        self.tokens.get(i).map(|t| t.kind)
     }
 
     fn parse_accidental(&mut self) -> Option<Accidental> {
@@ -792,6 +850,9 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
     fn parse_rest(&mut self) -> Option<Rest> {
         let start = self.current_position();
 
+        // Parse prefix decorations
+        let decorations = self.parse_decorations();
+
         let token = self.advance()?;
         if token.kind != TokenKind::Rest {
             return None;
@@ -806,6 +867,7 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         Some(Rest {
             multi_measure,
             duration,
+            decorations,
             range: TextRange::new(start, end),
         })
     }
@@ -831,6 +893,10 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
 
     fn parse_chord(&mut self) -> Option<Chord> {
         let start = self.current_position();
+
+        // Parse prefix decorations
+        let decorations = self.parse_decorations();
+
         let open_bracket_range = self.peek()?.range;
 
         // Consume [
@@ -898,6 +964,7 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         Some(Chord {
             notes,
             duration,
+            decorations,
             range: TextRange::new(start, end),
         })
     }

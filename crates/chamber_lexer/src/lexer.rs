@@ -179,6 +179,15 @@ impl<'a> Lexer<'a> {
                 }
             }
 
+            // Decorations (!trill!, +fermata+)
+            '!' | '+' => {
+                if self.in_header {
+                    self.text()
+                } else {
+                    self.decoration(c)
+                }
+            }
+
             // Everything else in header context is text
             _ if self.in_header => self.text(),
 
@@ -274,6 +283,23 @@ impl<'a> Lexer<'a> {
             }
         }
         TokenKind::Text
+    }
+
+    fn decoration(&mut self, delimiter: char) -> TokenKind {
+        // Consume decoration name until matching delimiter
+        while let Some(c) = self.peek() {
+            if c == delimiter {
+                self.advance(); // consume closing delimiter
+                return TokenKind::Decoration;
+            }
+            if c == '\n' || c == '\r' {
+                // Unterminated decoration
+                return TokenKind::Error;
+            }
+            self.advance();
+        }
+        // Unterminated decoration (reached EOF)
+        TokenKind::Error
     }
 }
 

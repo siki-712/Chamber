@@ -739,3 +739,132 @@ fn test_inline_field_with_complex_value() {
         other => panic!("Expected InlineField, got {:?}", other),
     }
 }
+
+// ============================================
+// Decorations
+// ============================================
+
+#[test]
+fn test_simple_decoration() {
+    let tune = parse("X:1\nK:C\n!trill!C");
+
+    match &tune.body.elements[0] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::C);
+            assert_eq!(note.decorations.len(), 1);
+            assert_eq!(note.decorations[0].name, "trill");
+        }
+        other => panic!("Expected Note with decoration, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_multiple_decorations() {
+    let tune = parse("X:1\nK:C\n!trill!!fermata!C");
+
+    match &tune.body.elements[0] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.decorations.len(), 2);
+            assert_eq!(note.decorations[0].name, "trill");
+            assert_eq!(note.decorations[1].name, "fermata");
+        }
+        other => panic!("Expected Note with multiple decorations, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_decoration_with_duration() {
+    let tune = parse("X:1\nK:C\n!accent!C2");
+
+    match &tune.body.elements[0] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.decorations.len(), 1);
+            assert_eq!(note.decorations[0].name, "accent");
+            assert_eq!(note.duration, Some(Duration::new(2, 1)));
+        }
+        other => panic!("Expected Note with decoration and duration, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_plus_syntax_decoration() {
+    let tune = parse("X:1\nK:C\n+accent+D");
+
+    match &tune.body.elements[0] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::D);
+            assert_eq!(note.decorations.len(), 1);
+            assert_eq!(note.decorations[0].name, "accent");
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_decoration_on_rest() {
+    let tune = parse("X:1\nK:C\n!breath!z");
+
+    match &tune.body.elements[0] {
+        MusicElement::Rest(rest) => {
+            assert_eq!(rest.decorations.len(), 1);
+            assert_eq!(rest.decorations[0].name, "breath");
+        }
+        other => panic!("Expected Rest with decoration, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_decoration_on_chord() {
+    let tune = parse("X:1\nK:C\n!accent![CEG]");
+
+    match &tune.body.elements[0] {
+        MusicElement::Chord(chord) => {
+            assert_eq!(chord.decorations.len(), 1);
+            assert_eq!(chord.decorations[0].name, "accent");
+            assert_eq!(chord.notes.len(), 3);
+        }
+        other => panic!("Expected Chord with decoration, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_notes_with_and_without_decorations() {
+    let tune = parse("X:1\nK:C\n!trill!C D !fermata!E F");
+
+    // C with trill
+    match &tune.body.elements[0] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::C);
+            assert_eq!(note.decorations.len(), 1);
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+
+    // D without decoration
+    match &tune.body.elements[1] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::D);
+            assert!(note.decorations.is_empty());
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+
+    // E with fermata
+    match &tune.body.elements[2] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::E);
+            assert_eq!(note.decorations.len(), 1);
+            assert_eq!(note.decorations[0].name, "fermata");
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+
+    // F without decoration
+    match &tune.body.elements[3] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::F);
+            assert!(note.decorations.is_empty());
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+}
