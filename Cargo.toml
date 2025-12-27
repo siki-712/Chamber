@@ -5,7 +5,7 @@ members = [
     "crates/chamber_lexer",
     "crates/chamber_diagnostics",
     "crates/chamber_parser",
-    "crates/chamber_cli",
+    "crates/chamber_cli", "crates/chamber_analyzer",
 ]
 
 [workspace.package]

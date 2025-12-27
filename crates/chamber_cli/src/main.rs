@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::process::ExitCode;
 
+use chamber_analyzer::analyze;
 use chamber_diagnostics::{Diagnostic, LineIndex, Severity};
 use chamber_parser::parse_with_diagnostics;
 
@@ -70,11 +71,21 @@ fn cmd_check(path: &str) -> ExitCode {
     let result = parse_with_diagnostics(&source);
     let line_index = LineIndex::new(&source);
 
+    // Run semantic analysis
+    let analyzer_diagnostics = analyze(&result.tune);
+
+    // Combine parser and analyzer diagnostics
+    let all_diagnostics: Vec<_> = result
+        .diagnostics
+        .iter()
+        .chain(analyzer_diagnostics.iter())
+        .collect();
+
     // Print diagnostics
     let mut error_count = 0;
     let mut warning_count = 0;
 
-    for diag in &result.diagnostics {
+    for diag in all_diagnostics.iter() {
         print_diagnostic(path, &source, &line_index, diag);
 
         match diag.severity {

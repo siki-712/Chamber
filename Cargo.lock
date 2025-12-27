@@ -3,9 +3,19 @@
 version = 3
 
 [[package]]
+name = "chamber_analyzer"
+version = "0.1.0"
+dependencies = [
+ "chamber_diagnostics",
+ "chamber_parser",
+ "chamber_text_size",
+]
+
+[[package]]
 name = "chamber_cli"
 version = "0.1.0"
 dependencies = [
+ "chamber_analyzer",
  "chamber_diagnostics",
  "chamber_parser",
 ]

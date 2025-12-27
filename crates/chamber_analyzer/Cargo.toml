@@ -1,13 +1,11 @@
 [package]
-name = "chamber_cli"
+name = "chamber_analyzer"
 version.workspace = true
 edition.workspace = true
-
-[[bin]]
-name = "chamber"
-path = "src/main.rs"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 chamber_parser = { path = "../chamber_parser" }
 chamber_diagnostics = { path = "../chamber_diagnostics" }
-chamber_analyzer = { path = "../chamber_analyzer" }
+chamber_text_size = { path = "../chamber_text_size" }
