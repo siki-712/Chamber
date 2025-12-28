@@ -95,9 +95,13 @@ impl<'a> Lexer<'a> {
 
             // Parentheses
             '(' => {
-                // Check for tuplet like (3
-                if self.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
-                    self.advance();
+                // Check for tuplet like (3 or ( 3
+                if self.has_digit_ahead() {
+                    // Skip whitespace before digit
+                    while self.peek().map(|c| c == ' ' || c == '\t').unwrap_or(false) {
+                        self.advance();
+                    }
+                    // Consume digits
                     while self.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
                         self.advance();
                     }
@@ -148,8 +152,19 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            // Notes
-            'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'B' | 'c' | 'd' | 'e' | 'f' | 'g' | 'a' | 'b' => {
+            // Notes (uppercase can also be field labels: A=Area, B=Book, C=Composer, etc.)
+            'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'B' => {
+                if self.in_header {
+                    self.text()
+                } else if self.has_colon_ahead() {
+                    TokenKind::FieldLabel
+                } else {
+                    TokenKind::Note
+                }
+            }
+
+            // Lowercase notes (never field labels)
+            'c' | 'd' | 'e' | 'f' | 'g' | 'a' | 'b' => {
                 if self.in_header {
                     self.text()
                 } else {
@@ -215,11 +230,34 @@ impl<'a> Lexer<'a> {
 
     /// Check if there's a colon ahead, possibly with whitespace in between.
     /// Used for detecting field labels like "T :" or "K  :".
+    /// Returns false if the colon is part of ":| " (repeat end).
     fn has_colon_ahead(&self) -> bool {
+        let remaining = &self.source[self.position..];
+        let mut chars = remaining.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            match c {
+                ':' => {
+                    // Check if this is ":| " (repeat end) - not a field label
+                    if chars.peek() == Some(&'|') {
+                        return false;
+                    }
+                    return true;
+                }
+                ' ' | '\t' => continue,
+                _ => return false,
+            }
+        }
+        false
+    }
+
+    /// Check if there's a digit ahead, possibly with whitespace in between.
+    /// Used for detecting tuplets like "( 3" or "(3".
+    fn has_digit_ahead(&self) -> bool {
         let remaining = &self.source[self.position..];
         for c in remaining.chars() {
             match c {
-                ':' => return true,
+                '0'..='9' => return true,
                 ' ' | '\t' => continue,
                 _ => return false,
             }

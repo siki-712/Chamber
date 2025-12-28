@@ -456,12 +456,33 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_bar_line_content(&mut self, node: &CstNode) {
-        // Just emit the bar line tokens
+        // Emit bar line tokens, preserving newlines but normalizing spaces
         for child in node.children() {
             match child {
                 CstChild::Token(token) => {
-                    // Emit bar token, skip trivia handling for cleaner output
+                    // Skip leading whitespace (we control spacing)
+                    // but preserve comments
+                    for trivia in token.leading_trivia() {
+                        if trivia.kind == SyntaxKind::COMMENT {
+                            self.emit_text(trivia.text(self.source));
+                        }
+                    }
+
+                    // Emit bar token text
                     self.emit(token.text(self.source));
+
+                    // Preserve trailing newlines and comments, skip whitespace
+                    for trivia in token.trailing_trivia() {
+                        match trivia.kind {
+                            SyntaxKind::NEWLINE => {
+                                self.emit_text(trivia.text(self.source));
+                            }
+                            SyntaxKind::COMMENT => {
+                                self.emit_text(trivia.text(self.source));
+                            }
+                            _ => {} // Skip whitespace
+                        }
+                    }
                 }
                 CstChild::Node(n) => self.format_node(n),
             }
@@ -487,7 +508,34 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_tuplet(&mut self, node: &CstNode) {
-        self.format_children(node);
+        if self.config.normalize_tuplets {
+            // Normalize tuplet: "( 3" -> "(3"
+            for child in node.children() {
+                match child {
+                    CstChild::Token(token) => {
+                        if token.kind() == SyntaxKind::TUPLET_MARKER {
+                            // Emit leading trivia
+                            for trivia in token.leading_trivia() {
+                                self.emit_text(trivia.text(self.source));
+                            }
+                            // Normalize token text: remove internal spaces
+                            let text = token.text(self.source);
+                            let normalized: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+                            self.emit(&normalized);
+                            // Emit trailing trivia
+                            for trivia in token.trailing_trivia() {
+                                self.emit_text(trivia.text(self.source));
+                            }
+                        } else {
+                            self.emit_token(token);
+                        }
+                    }
+                    CstChild::Node(n) => self.format_node(n),
+                }
+            }
+        } else {
+            self.format_children(node);
+        }
     }
 
     fn format_slur(&mut self, node: &CstNode) {

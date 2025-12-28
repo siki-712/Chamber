@@ -28,6 +28,10 @@ pub struct FormatterConfig {
     /// Whether to remove empty lines in the header section.
     pub remove_empty_header_lines: bool,
 
+    /// Whether to normalize tuplet markers (remove spaces).
+    /// `( 3ABC` -> `(3ABC`
+    pub normalize_tuplets: bool,
+
     /// Maximum line width for music lines (0 = no limit).
     pub max_line_width: usize,
 }
@@ -43,6 +47,7 @@ impl Default for FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: true,
             remove_empty_header_lines: true,
+            normalize_tuplets: true,
             max_line_width: 0,
         }
     }
@@ -60,6 +65,7 @@ impl FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
+            normalize_tuplets: false,
             max_line_width: 0,
         }
     }
@@ -75,6 +81,7 @@ impl FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
+            normalize_tuplets: false,
             max_line_width: 0,
         }
     }
