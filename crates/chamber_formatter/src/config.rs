@@ -28,6 +28,10 @@ pub struct FormatterConfig {
     /// Whether to remove empty lines in the header section.
     pub remove_empty_header_lines: bool,
 
+    /// Whether to remove blank line between header and body.
+    /// ABC 2.1 spec says body "follows immediately after" the K: field.
+    pub remove_header_body_separator: bool,
+
     /// Whether to normalize tuplet markers (remove spaces).
     /// `( 3ABC` -> `(3ABC`
     pub normalize_tuplets: bool,
@@ -55,6 +59,7 @@ impl Default for FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: true,
             remove_empty_header_lines: true,
+            remove_header_body_separator: true,
             normalize_tuplets: true,
             normalize_slurs: true,
             normalize_comments: true,
@@ -75,6 +80,7 @@ impl FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
+            remove_header_body_separator: false,
             normalize_tuplets: false,
             normalize_slurs: false,
             normalize_comments: false,
@@ -93,6 +99,7 @@ impl FormatterConfig {
             normalize_header_order: false,
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
+            remove_header_body_separator: false,
             normalize_tuplets: false,
             normalize_slurs: false,
             normalize_comments: false,

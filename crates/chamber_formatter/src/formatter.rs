@@ -28,6 +28,8 @@ struct Formatter<'a> {
     in_tuplet: bool,
     /// Track if we're inside a slur (for removing internal spaces)
     in_slur: bool,
+    /// Track if we're at the start of body (for removing header-body separator)
+    at_body_start: bool,
     /// Current line content for width tracking
     current_line: String,
 }
@@ -43,6 +45,7 @@ impl<'a> Formatter<'a> {
             after_note: false,
             in_tuplet: false,
             in_slur: false,
+            at_body_start: false,
             current_line: String::new(),
         }
     }
@@ -127,8 +130,15 @@ impl<'a> Formatter<'a> {
     fn emit_trivia_in_context(&mut self, trivia: &chamber_syntax::Trivia) {
         let text = trivia.text(self.source);
         match trivia.kind {
-            SyntaxKind::COMMENT => self.emit_comment(text),
-            SyntaxKind::WHITESPACE => {
+            SyntaxKind::COMMENT => {
+                self.at_body_start = false;
+                self.emit_comment(text);
+            }
+            SyntaxKind::WHITESPACE | SyntaxKind::NEWLINE => {
+                // Skip blank lines at start of body
+                if self.at_body_start {
+                    return;
+                }
                 // Skip whitespace inside tuplets when normalizing
                 if self.in_tuplet && self.config.normalize_tuplets {
                     return;
@@ -149,12 +159,19 @@ impl<'a> Formatter<'a> {
                     self.emit_text(text);
                 }
             }
-            _ => self.emit_text(text),
+            _ => {
+                self.at_body_start = false;
+                self.emit_text(text);
+            }
         }
     }
 
     fn emit_text(&mut self, text: &str) {
         self.output.push_str(text);
+        // Reset body start flag when we emit actual content
+        if !text.chars().all(|c| c.is_whitespace()) {
+            self.at_body_start = false;
+        }
         if text.contains('\n') {
             self.current_line.clear();
         } else {
@@ -164,6 +181,10 @@ impl<'a> Formatter<'a> {
 
     fn emit(&mut self, s: &str) {
         self.output.push_str(s);
+        // Reset body start flag when we emit actual content
+        if !s.chars().all(|c| c.is_whitespace()) {
+            self.at_body_start = false;
+        }
         if s.contains('\n') {
             self.current_line.clear();
         } else {
@@ -228,6 +249,21 @@ impl<'a> Formatter<'a> {
         }
 
         self.in_header = false;
+
+        // Remove trailing blank lines from header if configured
+        if self.config.remove_header_body_separator {
+            self.trim_trailing_blank_lines();
+        }
+    }
+
+    /// Remove trailing blank lines from output (keep one newline).
+    fn trim_trailing_blank_lines(&mut self) {
+        // Find the last non-newline character
+        let trimmed = self.output.trim_end_matches(|c| c == '\n' || c == '\r');
+        let len = trimmed.len();
+        self.output.truncate(len);
+        // Add back exactly one newline
+        self.output.push('\n');
     }
 
     fn is_empty_line_trivia(&self, token: &CstToken) -> bool {
@@ -408,6 +444,7 @@ impl<'a> Formatter<'a> {
     fn format_body(&mut self, node: &CstNode) {
         self.after_bar = false;
         self.after_note = false;
+        self.at_body_start = self.config.remove_header_body_separator;
 
         let children: Vec<_> = node.children().iter().collect();
 
@@ -519,15 +556,7 @@ impl<'a> Formatter<'a> {
                 CstChild::Token(token) => {
                     // Preserve comments and newlines in leading trivia, skip whitespace
                     for trivia in token.leading_trivia() {
-                        match trivia.kind {
-                            SyntaxKind::COMMENT => {
-                                self.emit_comment(trivia.text(self.source));
-                            }
-                            SyntaxKind::NEWLINE => {
-                                self.emit_text(trivia.text(self.source));
-                            }
-                            _ => {} // Skip whitespace
-                        }
+                        self.emit_trivia_in_bar_context(trivia);
                     }
 
                     // Emit bar token text, normalizing internal whitespace
@@ -535,15 +564,7 @@ impl<'a> Formatter<'a> {
 
                     // Preserve trailing newlines and comments, skip whitespace
                     for trivia in token.trailing_trivia() {
-                        match trivia.kind {
-                            SyntaxKind::COMMENT => {
-                                self.emit_comment(trivia.text(self.source));
-                            }
-                            SyntaxKind::NEWLINE => {
-                                self.emit_text(trivia.text(self.source));
-                            }
-                            _ => {} // Skip whitespace
-                        }
+                        self.emit_trivia_in_bar_context(trivia);
                     }
                 }
                 CstChild::Node(n) => self.format_node(n),
@@ -551,9 +572,40 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Emit trivia in bar line context (skip blank lines at body start, otherwise skip only whitespace).
+    fn emit_trivia_in_bar_context(&mut self, trivia: &chamber_syntax::Trivia) {
+        match trivia.kind {
+            SyntaxKind::COMMENT => {
+                self.at_body_start = false;
+                self.emit_comment(trivia.text(self.source));
+            }
+            SyntaxKind::NEWLINE => {
+                // Skip newlines at start of body
+                if self.at_body_start {
+                    return;
+                }
+                self.emit_text(trivia.text(self.source));
+            }
+            SyntaxKind::WHITESPACE => {
+                // Skip whitespace at start of body (part of blank line removal)
+                if self.at_body_start {
+                    return;
+                }
+                // Skip whitespace in bar lines (we control spacing via space_around_bars)
+            }
+            _ => {
+                self.at_body_start = false;
+                self.emit_text(trivia.text(self.source));
+            }
+        }
+    }
+
     /// Emit a bar line token, normalizing internal whitespace.
     /// `: |` -> `:|`, `| :` -> `|:`
     fn emit_bar_token(&mut self, token: &CstToken) {
+        // Reset body start flag - we're emitting actual content
+        self.at_body_start = false;
+
         let text = token.text(self.source);
         match token.kind() {
             SyntaxKind::REPEAT_END => {
@@ -1134,4 +1186,37 @@ fn test_complex_q_field_with_colon_spacing() {
 
     // Colon spacing normalized, but value preserved
     assert!(formatted.contains("Q:1/4 3/8 1/4 3/8=40"), "Got: {}", formatted);
+}
+
+#[test]
+fn test_remove_header_body_separator() {
+    // Empty line between header and body should be removed
+    let source = "X:1\nT:Test\nK:G\n\n|: GAG GAB |\n";
+
+    let formatted = format(source, &FormatterConfig::default());
+
+    // Empty line should be removed
+    assert!(formatted.contains("K:G\n|:"), "Got: {}", formatted);
+}
+
+#[test]
+fn test_preserve_header_body_separator() {
+    // With passthrough config, empty line should be preserved
+    let source = "X:1\nT:Test\nK:G\n\n|: GAG GAB |\n";
+
+    let formatted = format(source, &FormatterConfig::passthrough());
+
+    // Empty line should be preserved
+    assert!(formatted.contains("K:G\n\n|:"), "Got: {}", formatted);
+}
+
+#[test]
+fn test_remove_header_body_separator_with_note_start() {
+    // Body starts with a note, not a bar line
+    let source = "X:1\nT:Test\nK:G\n\nGAG GAB |\n";
+
+    let formatted = format(source, &FormatterConfig::default());
+
+    // Empty line should be removed
+    assert!(formatted.contains("K:G\nGAG"), "Got: {}", formatted);
 }
