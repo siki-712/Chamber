@@ -1,0 +1,9 @@
+X:1
+T:Bar Length Mismatch (6/8 Jig)
+M:6/8
+L:1/8
+K:D
+% W003: 6/8 (= 3/4 reduced) = 6 eighth notes per bar
+DEFGAB|   % 6 notes = 6/8 = 3/4 - correct
+DEFGA|    % 5 notes = 5/8 - too short
+DEFGABC|  % 7 notes = 7/8 - too long

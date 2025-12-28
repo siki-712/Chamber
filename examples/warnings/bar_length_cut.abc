@@ -1,0 +1,9 @@
+X:1
+T:Bar Length with Cut Time
+M:C|
+L:1/2
+K:C
+% W003: C| = 2/2, L:1/2 means 2 half notes per bar
+CD|    % 2 half notes = 2/2 = 1/1 - correct
+C|     % 1 half note = 1/2 - too short
+CDE|   % 3 half notes = 3/2 - too long

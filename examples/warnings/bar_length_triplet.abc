@@ -1,0 +1,8 @@
+X:1
+T:Bar Length with Triplet
+M:2/4
+L:1/8
+K:C
+% W003: Triplet - 3 notes in time of 2
+(3CDE FG|    % triplet(2/8) + 2/8 = 4/8 = 1/2 - correct
+(3CDE F|     % triplet(2/8) + 1/8 = 3/8, expected 1/2 - too short
