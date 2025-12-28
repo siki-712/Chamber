@@ -284,6 +284,20 @@ impl<'a> Lexer<'a> {
         false
     }
 
+    /// Check if there's a colon `:` ahead, possibly with whitespace in between.
+    /// Used for detecting repeat start like "| :" or "|:".
+    fn has_colon_ahead_for_repeat(&self) -> bool {
+        let remaining = &self.source[self.position..];
+        for c in remaining.chars() {
+            match c {
+                ':' => return true,
+                ' ' | '\t' => continue,
+                _ => return false,
+            }
+        }
+        false
+    }
+
     fn advance(&mut self) -> char {
         let c = self.source[self.position..].chars().next().unwrap();
         self.position += c.len_utf8();
@@ -322,14 +336,21 @@ impl<'a> Lexer<'a> {
     }
 
     fn bar_line(&mut self) -> TokenKind {
+        // Check for |: or | : (with space)
+        if self.has_colon_ahead_for_repeat() {
+            // Skip whitespace before colon
+            while self.peek().map(|c| c == ' ' || c == '\t').unwrap_or(false) {
+                self.advance();
+            }
+            // Consume the :
+            self.advance();
+            return TokenKind::RepeatStart;
+        }
+
         match self.peek() {
             Some('|') => {
                 self.advance();
                 TokenKind::DoubleBar
-            }
-            Some(':') => {
-                self.advance();
-                TokenKind::RepeatStart
             }
             Some(']') => {
                 self.advance();

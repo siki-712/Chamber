@@ -190,6 +190,21 @@ fn test_repeat_end_with_space() {
 }
 
 #[test]
+fn test_repeat_start_with_space() {
+    // | : with space should still be recognized as RepeatStart
+    let tokens = tokenize("| :");
+    assert_eq!(tokens, vec![TokenKind::RepeatStart, TokenKind::Eof]);
+
+    // Multiple spaces
+    let tokens = tokenize("|  :");
+    assert_eq!(tokens, vec![TokenKind::RepeatStart, TokenKind::Eof]);
+
+    // Tab
+    let tokens = tokenize("|\t:");
+    assert_eq!(tokens, vec![TokenKind::RepeatStart, TokenKind::Eof]);
+}
+
+#[test]
 fn test_simple_bar() {
     let tokens = tokenize("|C|D|");
     assert_eq!(

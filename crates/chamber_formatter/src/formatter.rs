@@ -101,12 +101,7 @@ impl<'a> Formatter<'a> {
     fn emit_token(&mut self, token: &CstToken) {
         // Handle leading trivia
         for trivia in token.leading_trivia() {
-            let text = trivia.text(self.source);
-            if trivia.kind == SyntaxKind::COMMENT {
-                self.emit_comment(text);
-            } else {
-                self.emit_text(text);
-            }
+            self.emit_trivia_in_context(trivia);
         }
 
         // Emit token text
@@ -115,12 +110,30 @@ impl<'a> Formatter<'a> {
 
         // Handle trailing trivia
         for trivia in token.trailing_trivia() {
-            let text = trivia.text(self.source);
-            if trivia.kind == SyntaxKind::COMMENT {
-                self.emit_comment(text);
-            } else {
-                self.emit_text(text);
+            self.emit_trivia_in_context(trivia);
+        }
+    }
+
+    /// Emit trivia with context-aware normalization.
+    /// In body with normalize_note_spacing, collapse multiple spaces to single space.
+    fn emit_trivia_in_context(&mut self, trivia: &chamber_syntax::Trivia) {
+        let text = trivia.text(self.source);
+        match trivia.kind {
+            SyntaxKind::COMMENT => self.emit_comment(text),
+            SyntaxKind::WHITESPACE => {
+                // Normalize whitespace in body when configured
+                if !self.in_header && self.config.normalize_note_spacing {
+                    // Collapse multiple spaces to single space
+                    if text.chars().all(|c| c == ' ' || c == '\t') {
+                        self.emit(" ");
+                    } else {
+                        self.emit_text(text);
+                    }
+                } else {
+                    self.emit_text(text);
+                }
             }
+            _ => self.emit_text(text),
         }
     }
 
@@ -523,13 +536,17 @@ impl<'a> Formatter<'a> {
     }
 
     /// Emit a bar line token, normalizing internal whitespace.
-    /// `: |` -> `:|`
+    /// `: |` -> `:|`, `| :` -> `|:`
     fn emit_bar_token(&mut self, token: &CstToken) {
         let text = token.text(self.source);
         match token.kind() {
             SyntaxKind::REPEAT_END => {
                 // Normalize ": |" or ":  |" to ":|"
                 self.emit(":|");
+            }
+            SyntaxKind::REPEAT_START => {
+                // Normalize "| :" or "|  :" to "|:"
+                self.emit("|:");
             }
             _ => {
                 self.emit(text);
@@ -986,5 +1003,28 @@ c'BAG|FEDC|
 
         assert!(formatted.contains("CDEF :|"), "Got: {}", formatted);
         assert!(!formatted.contains(": |"), "Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_normalize_multiple_spaces_between_notes() {
+        // Multiple spaces between notes should be collapsed to single space
+        let source = "X:1\nK:C\nGAG   GAB | ABA  ABd\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        assert!(formatted.contains("GAG GAB"), "Got: {}", formatted);
+        assert!(formatted.contains("ABA ABd"), "Got: {}", formatted);
+        assert!(!formatted.contains("  "), "Should not have double spaces. Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_repeat_start_spacing_normalization() {
+        // `| :` with space should be normalized to `|:`
+        let source = "X:1\nK:C\n| : CDEF |\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        assert!(formatted.contains("|: CDEF"), "Got: {}", formatted);
+        assert!(!formatted.contains("| :"), "Got: {}", formatted);
     }
 }
