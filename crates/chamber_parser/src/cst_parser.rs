@@ -10,19 +10,20 @@ use chamber_syntax::SyntaxKind;
 /// Parses source into a CST.
 pub fn parse_cst(source: &str) -> CstNode {
     let tokens = tokenize_cst(source);
-    let mut parser = CstParser::new(tokens);
+    let mut parser = CstParser::new(source, tokens);
     parser.parse_tune()
 }
 
 /// CST parser state.
-struct CstParser {
+struct CstParser<'a> {
+    source: &'a str,
     tokens: Vec<CstToken>,
     position: usize,
 }
 
-impl CstParser {
-    fn new(tokens: Vec<CstToken>) -> Self {
-        Self { tokens, position: 0 }
+impl<'a> CstParser<'a> {
+    fn new(source: &'a str, tokens: Vec<CstToken>) -> Self {
+        Self { source, tokens, position: 0 }
     }
 
     // === Navigation ===
@@ -461,15 +462,23 @@ impl CstParser {
 
     fn parse_tuplet(&mut self) -> CstNode {
         let mut children = Vec::new();
+        let mut count = 3usize; // Default
 
-        // Tuplet marker (e.g., (3)
+        // Tuplet marker (e.g., (3, (4, (5, etc.)
         if let Some(marker) = self.eat(SyntaxKind::TUPLET_MARKER) {
+            // Extract the number from the marker text
+            let text = marker.text(self.source);
+            // Find the digit in the marker (e.g., "( 3" -> 3, "(4" -> 4)
+            for c in text.chars() {
+                if let Some(digit) = c.to_digit(10) {
+                    count = digit as usize;
+                    break;
+                }
+            }
             children.push(CstChild::Token(marker));
         }
 
-        // Notes in tuplet (simplified: just collect following notes)
-        // In ABC, tuplet applies to the next N notes based on the marker
-        let count = 3; // Default for (3
+        // Notes in tuplet: collect exactly `count` notes
         for _ in 0..count {
             if self.check_any(&[
                 SyntaxKind::SHARP,

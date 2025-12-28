@@ -24,6 +24,8 @@ struct Formatter<'a> {
     after_bar: bool,
     /// Track if we just emitted a note/chord/rest
     after_note: bool,
+    /// Track if we're inside a tuplet (for removing internal spaces)
+    in_tuplet: bool,
     /// Track if we're inside a slur (for removing internal spaces)
     in_slur: bool,
     /// Current line content for width tracking
@@ -39,6 +41,7 @@ impl<'a> Formatter<'a> {
             in_header: false,
             after_bar: false,
             after_note: false,
+            in_tuplet: false,
             in_slur: false,
             current_line: String::new(),
         }
@@ -119,12 +122,17 @@ impl<'a> Formatter<'a> {
 
     /// Emit trivia with context-aware normalization.
     /// In body with normalize_note_spacing, collapse multiple spaces to single space.
+    /// In tuplet with normalize_tuplets, skip whitespace entirely.
     /// In slur with normalize_slurs, skip whitespace entirely.
     fn emit_trivia_in_context(&mut self, trivia: &chamber_syntax::Trivia) {
         let text = trivia.text(self.source);
         match trivia.kind {
             SyntaxKind::COMMENT => self.emit_comment(text),
             SyntaxKind::WHITESPACE => {
+                // Skip whitespace inside tuplets when normalizing
+                if self.in_tuplet && self.config.normalize_tuplets {
+                    return;
+                }
                 // Skip whitespace inside slurs when normalizing
                 if self.in_slur && self.config.normalize_slurs {
                     return;
@@ -605,30 +613,56 @@ impl<'a> Formatter<'a> {
 
     fn format_tuplet(&mut self, node: &CstNode) {
         if self.config.normalize_tuplets {
-            // Only normalize the tuplet marker "( 3" -> "(3"
-            // Notes inside keep normal spacing (multiple spaces -> single space)
+            // Set flag to remove whitespace inside tuplet
+            self.in_tuplet = true;
+
+            // Track if last child had trailing whitespace (need to preserve separator)
+            let mut had_trailing_whitespace = false;
+
             for child in node.children() {
                 match child {
                     CstChild::Token(token) => {
                         if token.kind() == SyntaxKind::TUPLET_MARKER {
-                            // Emit leading trivia normally
+                            // Emit leading trivia
                             for trivia in token.leading_trivia() {
                                 self.emit_trivia_in_context(trivia);
                             }
-                            // Normalize token text: remove internal spaces in marker
+                            // Normalize marker: "( 3" -> "(3"
                             let text = token.text(self.source);
                             let normalized: String = text.chars().filter(|c| !c.is_whitespace()).collect();
                             self.emit(&normalized);
-                            // Emit trailing trivia normally
+                            // Check trailing trivia for whitespace
+                            had_trailing_whitespace = token.trailing_trivia()
+                                .iter()
+                                .any(|t| t.kind == SyntaxKind::WHITESPACE);
+                            // Emit trailing trivia (whitespace will be skipped)
                             for trivia in token.trailing_trivia() {
                                 self.emit_trivia_in_context(trivia);
                             }
                         } else {
                             self.emit_token(token);
+                            had_trailing_whitespace = token.trailing_trivia()
+                                .iter()
+                                .any(|t| t.kind == SyntaxKind::WHITESPACE);
                         }
                     }
-                    CstChild::Node(n) => self.format_node(n),
+                    CstChild::Node(n) => {
+                        self.format_node(n);
+                        // Check last token of node for trailing whitespace
+                        if let Some(last_token) = n.last_token() {
+                            had_trailing_whitespace = last_token.trailing_trivia()
+                                .iter()
+                                .any(|t| t.kind == SyntaxKind::WHITESPACE);
+                        }
+                    }
                 }
+            }
+
+            self.in_tuplet = false;
+
+            // Preserve space after tuplet if there was trailing whitespace
+            if had_trailing_whitespace && !self.output.ends_with(' ') && !self.output.ends_with('\n') {
+                self.emit(" ");
             }
         } else {
             self.format_children(node);
@@ -1044,18 +1078,29 @@ c'BAG|FEDC|
     }
 
     #[test]
-    fn test_tuplet_marker_normalization() {
-        // Tuplet marker "( 3" should be normalized to "(3"
-        // But notes inside keep single-space separation
+    fn test_tuplet_normalization_3() {
+        // Tuplet "(3" should include exactly 3 notes
         let source = "X:1\nK:C\n( 3  e d d   g d B |\n";
 
         let formatted = format(source, &FormatterConfig::default());
 
-        // Marker normalized
-        assert!(formatted.contains("(3"), "Marker not normalized. Got: {}", formatted);
-        assert!(!formatted.contains("( 3"), "Marker still has space. Got: {}", formatted);
-        // Notes have single spaces (not merged)
-        assert!(formatted.contains("e d d"), "Notes should have spaces. Got: {}", formatted);
+        // Tuplet normalized: exactly "(3edd " with space after
+        assert!(formatted.contains("(3edd "), "Tuplet should be '(3edd ' with trailing space. Got: {}", formatted);
+        // Should NOT have "(3eddg" (g merged into tuplet)
+        assert!(!formatted.contains("(3eddg"), "g should NOT be merged into tuplet. Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_tuplet_normalization_4() {
+        // Tuplet "(4" should include exactly 4 notes
+        let source = "X:1\nK:C\n(4 a b c d e f |\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        // Tuplet normalized: "(4abcd " with space after
+        assert!(formatted.contains("(4abcd "), "Tuplet should be '(4abcd '. Got: {}", formatted);
+        // e should NOT be in tuplet
+        assert!(!formatted.contains("(4abcde"), "e should NOT be merged into tuplet. Got: {}", formatted);
     }
 
     #[test]
