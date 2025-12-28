@@ -24,8 +24,8 @@ struct Formatter<'a> {
     after_bar: bool,
     /// Track if we just emitted a note/chord/rest
     after_note: bool,
-    /// Track if we're inside a tuplet (for removing internal spaces)
-    in_tuplet: bool,
+    /// Track if we're inside a slur (for removing internal spaces)
+    in_slur: bool,
     /// Current line content for width tracking
     current_line: String,
 }
@@ -39,7 +39,7 @@ impl<'a> Formatter<'a> {
             in_header: false,
             after_bar: false,
             after_note: false,
-            in_tuplet: false,
+            in_slur: false,
             current_line: String::new(),
         }
     }
@@ -119,15 +119,14 @@ impl<'a> Formatter<'a> {
 
     /// Emit trivia with context-aware normalization.
     /// In body with normalize_note_spacing, collapse multiple spaces to single space.
-    /// In tuplet with normalize_tuplets, skip whitespace entirely.
+    /// In slur with normalize_slurs, skip whitespace entirely.
     fn emit_trivia_in_context(&mut self, trivia: &chamber_syntax::Trivia) {
         let text = trivia.text(self.source);
         match trivia.kind {
             SyntaxKind::COMMENT => self.emit_comment(text),
             SyntaxKind::WHITESPACE => {
-                // Skip whitespace inside tuplets when normalizing
-                if self.in_tuplet && self.config.normalize_tuplets {
-                    // Skip whitespace entirely inside tuplets
+                // Skip whitespace inside slurs when normalizing
+                if self.in_slur && self.config.normalize_slurs {
                     return;
                 }
                 // Normalize whitespace in body when configured
@@ -606,23 +605,21 @@ impl<'a> Formatter<'a> {
 
     fn format_tuplet(&mut self, node: &CstNode) {
         if self.config.normalize_tuplets {
-            // Set flag to skip whitespace inside tuplet
-            self.in_tuplet = true;
-
-            // Normalize tuplet: "( 3" -> "(3" and remove spaces between notes
+            // Only normalize the tuplet marker "( 3" -> "(3"
+            // Notes inside keep normal spacing (multiple spaces -> single space)
             for child in node.children() {
                 match child {
                     CstChild::Token(token) => {
                         if token.kind() == SyntaxKind::TUPLET_MARKER {
-                            // Emit leading trivia (using context-aware emit)
+                            // Emit leading trivia normally
                             for trivia in token.leading_trivia() {
                                 self.emit_trivia_in_context(trivia);
                             }
-                            // Normalize token text: remove internal spaces
+                            // Normalize token text: remove internal spaces in marker
                             let text = token.text(self.source);
                             let normalized: String = text.chars().filter(|c| !c.is_whitespace()).collect();
                             self.emit(&normalized);
-                            // Skip trailing trivia (whitespace after marker)
+                            // Emit trailing trivia normally
                             for trivia in token.trailing_trivia() {
                                 self.emit_trivia_in_context(trivia);
                             }
@@ -633,15 +630,19 @@ impl<'a> Formatter<'a> {
                     CstChild::Node(n) => self.format_node(n),
                 }
             }
-
-            self.in_tuplet = false;
         } else {
             self.format_children(node);
         }
     }
 
     fn format_slur(&mut self, node: &CstNode) {
-        self.format_children(node);
+        if self.config.normalize_slurs {
+            self.in_slur = true;
+            self.format_children(node);
+            self.in_slur = false;
+        } else {
+            self.format_children(node);
+        }
     }
 
     fn format_grace_notes(&mut self, node: &CstNode) {
@@ -1043,12 +1044,27 @@ c'BAG|FEDC|
     }
 
     #[test]
-    fn test_tuplet_internal_spacing() {
-        // Spaces inside tuplets should be removed
-        let source = "X:1\nK:C\n(3  e d d |\n";
+    fn test_tuplet_marker_normalization() {
+        // Tuplet marker "( 3" should be normalized to "(3"
+        // But notes inside keep single-space separation
+        let source = "X:1\nK:C\n( 3  e d d   g d B |\n";
 
         let formatted = format(source, &FormatterConfig::default());
 
-        assert!(formatted.contains("(3edd"), "Got: {}", formatted);
+        // Marker normalized
+        assert!(formatted.contains("(3"), "Marker not normalized. Got: {}", formatted);
+        assert!(!formatted.contains("( 3"), "Marker still has space. Got: {}", formatted);
+        // Notes have single spaces (not merged)
+        assert!(formatted.contains("e d d"), "Notes should have spaces. Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_slur_internal_spacing() {
+        // Spaces inside slurs should be removed
+        let source = "X:1\nK:C\n(  C D E ) |\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        assert!(formatted.contains("(CDE)"), "Got: {}", formatted);
     }
 }

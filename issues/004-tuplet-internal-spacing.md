@@ -1,34 +1,43 @@
-# Issue #004: Spaces inside tuplets not removed
+# Issue #004: Tuplet formatting
 
-## Problem
+## Problem (Original)
 
-When `normalize_tuplets` is enabled, spaces inside tuplet content should be removed.
-
-Current behavior:
+Originally wanted to remove all spaces inside tuplets:
 ```
-(3  e d d   g d B
+(3  e d d   g d B  →  (3edd gdB
 ```
 
-Expected behavior:
+## Issue Found
+
+Removing ALL spaces inside tuplets breaks the triplet boundary:
 ```
-(3edd gdB
+( 3  e d d   g d B  →  (3eddg d B   ← WRONG! "g" merged into triplet
 ```
 
-## Solution
+The triplet `(3` affects exactly 3 notes. Removing all spaces makes it unclear where the triplet ends.
 
-Added `in_tuplet` flag to the formatter. When inside a tuplet with `normalize_tuplets` enabled, whitespace trivia is skipped entirely.
+## Solution (Revised)
+
+Only normalize the tuplet marker itself, keep normal spacing between notes:
+```
+( 3  e d d   g d B  →  (3 e d d g d B
+```
+
+- Marker `( 3` → `(3` (spaces in marker removed)
+- Notes keep single-space separation (multiple spaces → single space)
+- Triplet boundary remains clear
 
 **Changes:**
 - `crates/chamber_formatter/src/formatter.rs`:
-  - Added `in_tuplet: bool` field to Formatter struct
-  - Updated `emit_trivia_in_context()` to skip whitespace when `in_tuplet && config.normalize_tuplets`
-  - Updated `format_tuplet()` to set `in_tuplet = true` while formatting children
+  - `format_tuplet()` only normalizes the marker token
+  - Notes inside use normal `emit_token()` with single-space normalization
+  - Removed `in_tuplet` flag (not needed)
 
 ## Status
 
 - [x] Issue created
-- [x] Fix implemented
-- [x] Tests added (`test_tuplet_internal_spacing`)
+- [x] Fix implemented (marker only)
+- [x] Tests added (`test_tuplet_marker_normalization`)
 - [x] Verified (all tests pass)
 
 ## Closed
