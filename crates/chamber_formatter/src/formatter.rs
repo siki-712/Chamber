@@ -501,8 +501,8 @@ impl<'a> Formatter<'a> {
                         }
                     }
 
-                    // Emit bar token text
-                    self.emit(token.text(self.source));
+                    // Emit bar token text, normalizing internal whitespace
+                    self.emit_bar_token(token);
 
                     // Preserve trailing newlines and comments, skip whitespace
                     for trivia in token.trailing_trivia() {
@@ -522,6 +522,21 @@ impl<'a> Formatter<'a> {
         }
     }
 
+    /// Emit a bar line token, normalizing internal whitespace.
+    /// `: |` -> `:|`
+    fn emit_bar_token(&mut self, token: &CstToken) {
+        let text = token.text(self.source);
+        match token.kind() {
+            SyntaxKind::REPEAT_END => {
+                // Normalize ": |" or ":  |" to ":|"
+                self.emit(":|");
+            }
+            _ => {
+                self.emit(text);
+            }
+        }
+    }
+
     fn format_note(&mut self, node: &CstNode) {
         for child in node.children() {
             self.format_child(child);
@@ -537,7 +552,30 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_bar_line(&mut self, node: &CstNode) {
-        self.format_children(node);
+        for child in node.children() {
+            match child {
+                CstChild::Token(token) => {
+                    // Emit leading trivia
+                    for trivia in token.leading_trivia() {
+                        self.emit_trivia(trivia);
+                    }
+                    // Emit bar token with normalization
+                    self.emit_bar_token(token);
+                    // Emit trailing trivia
+                    for trivia in token.trailing_trivia() {
+                        self.emit_trivia(trivia);
+                    }
+                }
+                CstChild::Node(n) => self.format_node(n),
+            }
+        }
+    }
+
+    fn emit_trivia(&mut self, trivia: &chamber_syntax::Trivia) {
+        match trivia.kind {
+            SyntaxKind::COMMENT => self.emit_comment(trivia.text(self.source)),
+            _ => self.emit_text(trivia.text(self.source)),
+        }
     }
 
     fn format_tuplet(&mut self, node: &CstNode) {
@@ -937,5 +975,16 @@ c'BAG|FEDC|
 
         // Should not add space after %% (directive)
         assert!(formatted.contains("%%directive"), "Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_repeat_end_spacing_normalization() {
+        // `: |` with space should be normalized to `:|`
+        let source = "X:1\nK:C\nCDEF : |\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        assert!(formatted.contains("CDEF :|"), "Got: {}", formatted);
+        assert!(!formatted.contains(": |"), "Got: {}", formatted);
     }
 }

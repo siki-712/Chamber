@@ -68,8 +68,13 @@ impl<'a> Lexer<'a> {
 
             // Colon - context switch to header
             ':' => {
-                // Check for repeat markers like :|
-                if self.peek() == Some('|') {
+                // Check for repeat markers like :| or : |
+                if self.has_bar_ahead() {
+                    // Skip whitespace before bar
+                    while self.peek().map(|c| c == ' ' || c == '\t').unwrap_or(false) {
+                        self.advance();
+                    }
+                    // Consume the |
                     self.advance();
                     TokenKind::RepeatEnd
                 } else {
@@ -258,6 +263,20 @@ impl<'a> Lexer<'a> {
         for c in remaining.chars() {
             match c {
                 '0'..='9' => return true,
+                ' ' | '\t' => continue,
+                _ => return false,
+            }
+        }
+        false
+    }
+
+    /// Check if there's a bar `|` ahead, possibly with whitespace in between.
+    /// Used for detecting repeat end like ": |" or ":|".
+    fn has_bar_ahead(&self) -> bool {
+        let remaining = &self.source[self.position..];
+        for c in remaining.chars() {
+            match c {
+                '|' => return true,
                 ' ' | '\t' => continue,
                 _ => return false,
             }
