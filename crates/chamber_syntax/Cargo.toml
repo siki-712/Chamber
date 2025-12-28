@@ -1,0 +1,9 @@
+[package]
+name = "chamber_syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+chamber_text_size = { path = "../chamber_text_size" }

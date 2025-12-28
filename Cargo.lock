@@ -29,6 +29,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "chamber_cst"
+version = "0.1.0"
+dependencies = [
+ "chamber_syntax",
+ "chamber_text_size",
+]
+
+[[package]]
 name = "chamber_diagnostics"
 version = "0.1.0"
 dependencies = [
@@ -39,6 +47,8 @@ dependencies = [
 name = "chamber_lexer"
 version = "0.1.0"
 dependencies = [
+ "chamber_cst",
+ "chamber_syntax",
  "chamber_text_size",
 ]
 
@@ -49,6 +59,13 @@ dependencies = [
  "chamber_ast",
  "chamber_diagnostics",
  "chamber_lexer",
+ "chamber_text_size",
+]
+
+[[package]]
+name = "chamber_syntax"
+version = "0.1.0"
+dependencies = [
  "chamber_text_size",
 ]
 

@@ -402,6 +402,6 @@ fn test_mixed_content() {
 fn test_is_trivia() {
     assert!(TokenKind::Whitespace.is_trivia());
     assert!(TokenKind::Comment.is_trivia());
+    assert!(TokenKind::Newline.is_trivia()); // Newline is now trivia for CST
     assert!(!TokenKind::Note.is_trivia());
-    assert!(!TokenKind::Newline.is_trivia());
 }

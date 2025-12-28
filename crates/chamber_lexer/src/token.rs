@@ -1,3 +1,4 @@
+use chamber_syntax::SyntaxKind;
 use chamber_text_size::TextRange;
 
 /// A token produced by the lexer.
@@ -111,6 +112,50 @@ pub enum TokenKind {
 impl TokenKind {
     /// Returns true if this token is trivia (whitespace or comment).
     pub fn is_trivia(self) -> bool {
-        matches!(self, TokenKind::Whitespace | TokenKind::Comment)
+        matches!(
+            self,
+            TokenKind::Whitespace | TokenKind::Comment | TokenKind::Newline
+        )
+    }
+
+    /// Converts this TokenKind to a SyntaxKind.
+    pub fn to_syntax_kind(self) -> SyntaxKind {
+        match self {
+            TokenKind::Whitespace => SyntaxKind::WHITESPACE,
+            TokenKind::Newline => SyntaxKind::NEWLINE,
+            TokenKind::Comment => SyntaxKind::COMMENT,
+            TokenKind::LineContinuation => SyntaxKind::LINE_CONTINUATION,
+            TokenKind::FieldLabel => SyntaxKind::FIELD_LABEL,
+            TokenKind::Colon => SyntaxKind::COLON,
+            TokenKind::Note => SyntaxKind::NOTE_NAME,
+            TokenKind::Rest => SyntaxKind::REST,
+            TokenKind::OctaveUp => SyntaxKind::OCTAVE_UP,
+            TokenKind::OctaveDown => SyntaxKind::OCTAVE_DOWN,
+            TokenKind::NoteLength => SyntaxKind::NUMBER,
+            TokenKind::Sharp => SyntaxKind::SHARP,
+            TokenKind::Natural => SyntaxKind::NATURAL,
+            TokenKind::Flat => SyntaxKind::FLAT,
+            TokenKind::Bar => SyntaxKind::BAR,
+            TokenKind::DoubleBar => SyntaxKind::DOUBLE_BAR,
+            TokenKind::RepeatStart => SyntaxKind::REPEAT_START,
+            TokenKind::RepeatEnd => SyntaxKind::REPEAT_END,
+            TokenKind::ThinThickBar => SyntaxKind::THIN_THICK_BAR,
+            TokenKind::ThickThinBar => SyntaxKind::THICK_THIN_BAR,
+            TokenKind::LeftBracket => SyntaxKind::L_BRACKET,
+            TokenKind::RightBracket => SyntaxKind::R_BRACKET,
+            TokenKind::LeftParen => SyntaxKind::L_PAREN,
+            TokenKind::RightParen => SyntaxKind::R_PAREN,
+            TokenKind::LeftBrace => SyntaxKind::L_BRACE,
+            TokenKind::RightBrace => SyntaxKind::R_BRACE,
+            TokenKind::Tie => SyntaxKind::TIE,
+            TokenKind::BrokenRhythm => SyntaxKind::BROKEN_RHYTHM,
+            TokenKind::Tuplet => SyntaxKind::TUPLET_MARKER,
+            TokenKind::Decoration => SyntaxKind::DECORATION,
+            TokenKind::Text => SyntaxKind::TEXT,
+            TokenKind::Number => SyntaxKind::NUMBER,
+            TokenKind::Slash => SyntaxKind::SLASH,
+            TokenKind::Eof => SyntaxKind::EOF,
+            TokenKind::Error => SyntaxKind::ERROR,
+        }
     }
 }

@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "crates/chamber_text_size",
+    "crates/chamber_syntax",
+    "crates/chamber_cst",
     "crates/chamber_ast",
     "crates/chamber_lexer",
     "crates/chamber_diagnostics",
