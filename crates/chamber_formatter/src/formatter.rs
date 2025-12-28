@@ -1113,3 +1113,25 @@ c'BAG|FEDC|
         assert!(formatted.contains("(CDE)"), "Got: {}", formatted);
     }
 }
+
+#[test]
+fn test_complex_q_field_preserved() {
+    // Complex tempo: Q:1/4 3/8 1/4 3/8=40 means play as if Q:5/4=40
+    let source = "X:1\nQ:1/4 3/8 1/4 3/8=40\nK:C\nCDEF|\n";
+
+    let formatted = format(source, &FormatterConfig::default());
+
+    // The complex Q field value should be preserved exactly
+    assert!(formatted.contains("Q:1/4 3/8 1/4 3/8=40"), "Got: {}", formatted);
+}
+
+#[test]
+fn test_complex_q_field_with_colon_spacing() {
+    // Q field with space around colon, but complex value should be preserved
+    let source = "X:1\nQ : 1/4 3/8 1/4 3/8=40\nK:C\nCDEF|\n";
+
+    let formatted = format(source, &FormatterConfig::default());
+
+    // Colon spacing normalized, but value preserved
+    assert!(formatted.contains("Q:1/4 3/8 1/4 3/8=40"), "Got: {}", formatted);
+}
