@@ -66,3 +66,12 @@ pub fn get_line_col(source: &str, offset: u32) -> JsValue {
 
     serde_wasm_bindgen::to_value(&line_col).unwrap_or(JsValue::NULL)
 }
+
+/// Tokenize ABC notation source code for syntax highlighting.
+///
+/// Returns an array of tokens with kind and range.
+#[wasm_bindgen]
+pub fn tokenize(source: &str) -> JsValue {
+    let tokens = chamber_lexer::Lexer::new(source).tokenize();
+    serde_wasm_bindgen::to_value(&tokens).unwrap_or(JsValue::NULL)
+}

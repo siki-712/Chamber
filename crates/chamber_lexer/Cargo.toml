@@ -7,3 +7,4 @@ edition = "2021"
 chamber_text_size = { path = "../chamber_text_size" }
 chamber_syntax = { path = "../chamber_syntax" }
 chamber_cst = { path = "../chamber_cst" }
+serde = { version = "1", features = ["derive"] }

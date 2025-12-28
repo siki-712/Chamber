@@ -18,6 +18,7 @@ chamber_formatter = { path = "../chamber_formatter" }
 chamber_diagnostics = { path = "../chamber_diagnostics" }
 chamber_ast = { path = "../chamber_ast" }
 chamber_text_size = { path = "../chamber_text_size" }
+chamber_lexer = { path = "../chamber_lexer" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

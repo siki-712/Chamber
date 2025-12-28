@@ -1,8 +1,9 @@
 use chamber_syntax::SyntaxKind;
 use chamber_text_size::TextRange;
+use serde::{Deserialize, Serialize};
 
 /// A token produced by the lexer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
     /// The kind of token.
     pub kind: TokenKind,
@@ -18,7 +19,7 @@ impl Token {
 }
 
 /// The kind of token in ABC notation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenKind {
     // Header fields
     /// Field label (X, T, M, K, L, Q, C, etc.)
