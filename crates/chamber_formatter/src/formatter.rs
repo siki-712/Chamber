@@ -24,6 +24,8 @@ struct Formatter<'a> {
     after_bar: bool,
     /// Track if we just emitted a note/chord/rest
     after_note: bool,
+    /// Track if we're inside a tuplet (for removing internal spaces)
+    in_tuplet: bool,
     /// Current line content for width tracking
     current_line: String,
 }
@@ -37,6 +39,7 @@ impl<'a> Formatter<'a> {
             in_header: false,
             after_bar: false,
             after_note: false,
+            in_tuplet: false,
             current_line: String::new(),
         }
     }
@@ -116,11 +119,17 @@ impl<'a> Formatter<'a> {
 
     /// Emit trivia with context-aware normalization.
     /// In body with normalize_note_spacing, collapse multiple spaces to single space.
+    /// In tuplet with normalize_tuplets, skip whitespace entirely.
     fn emit_trivia_in_context(&mut self, trivia: &chamber_syntax::Trivia) {
         let text = trivia.text(self.source);
         match trivia.kind {
             SyntaxKind::COMMENT => self.emit_comment(text),
             SyntaxKind::WHITESPACE => {
+                // Skip whitespace inside tuplets when normalizing
+                if self.in_tuplet && self.config.normalize_tuplets {
+                    // Skip whitespace entirely inside tuplets
+                    return;
+                }
                 // Normalize whitespace in body when configured
                 if !self.in_header && self.config.normalize_note_spacing {
                     // Collapse multiple spaces to single space
@@ -597,22 +606,25 @@ impl<'a> Formatter<'a> {
 
     fn format_tuplet(&mut self, node: &CstNode) {
         if self.config.normalize_tuplets {
-            // Normalize tuplet: "( 3" -> "(3"
+            // Set flag to skip whitespace inside tuplet
+            self.in_tuplet = true;
+
+            // Normalize tuplet: "( 3" -> "(3" and remove spaces between notes
             for child in node.children() {
                 match child {
                     CstChild::Token(token) => {
                         if token.kind() == SyntaxKind::TUPLET_MARKER {
-                            // Emit leading trivia
+                            // Emit leading trivia (using context-aware emit)
                             for trivia in token.leading_trivia() {
-                                self.emit_text(trivia.text(self.source));
+                                self.emit_trivia_in_context(trivia);
                             }
                             // Normalize token text: remove internal spaces
                             let text = token.text(self.source);
                             let normalized: String = text.chars().filter(|c| !c.is_whitespace()).collect();
                             self.emit(&normalized);
-                            // Emit trailing trivia
+                            // Skip trailing trivia (whitespace after marker)
                             for trivia in token.trailing_trivia() {
-                                self.emit_text(trivia.text(self.source));
+                                self.emit_trivia_in_context(trivia);
                             }
                         } else {
                             self.emit_token(token);
@@ -621,6 +633,8 @@ impl<'a> Formatter<'a> {
                     CstChild::Node(n) => self.format_node(n),
                 }
             }
+
+            self.in_tuplet = false;
         } else {
             self.format_children(node);
         }
@@ -1026,5 +1040,15 @@ c'BAG|FEDC|
 
         assert!(formatted.contains("|: CDEF"), "Got: {}", formatted);
         assert!(!formatted.contains("| :"), "Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_tuplet_internal_spacing() {
+        // Spaces inside tuplets should be removed
+        let source = "X:1\nK:C\n(3  e d d |\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        assert!(formatted.contains("(3edd"), "Got: {}", formatted);
     }
 }
