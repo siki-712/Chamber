@@ -1,0 +1,9 @@
+X:1
+T:Bar Length Mismatch
+M:4/4
+L:1/8
+K:C
+% W003: Bar length mismatch
+CDEF GAB|    % 7 eighth notes = 7/8, expected 1 (4/4)
+CDEF GABC|   % 8 eighth notes = correct
+CDEF GABCD|  % 9 eighth notes = 9/8, expected 1 (4/4)

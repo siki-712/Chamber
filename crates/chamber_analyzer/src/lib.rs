@@ -32,7 +32,7 @@ use chamber_ast::Tune;
 use chamber_diagnostics::Diagnostic;
 
 pub use rule::{Category, Rule, RuleExt, RuleMeta};
-pub use rules::{SuspiciousDuration, UnknownDecoration, UnusualOctave};
+pub use rules::{BarLength, SuspiciousDuration, UnknownDecoration, UnusualOctave};
 
 /// Result of semantic analysis.
 #[derive(Debug, Clone)]
@@ -94,6 +94,7 @@ impl Analyzer {
             UnknownDecoration::run(tune, &mut diagnostics);
             UnusualOctave::run(tune, &mut diagnostics);
             SuspiciousDuration::run(tune, &mut diagnostics);
+            BarLength::run(tune, &mut diagnostics);
         }
 
         // Sort diagnostics by position for consistent output

@@ -88,6 +88,8 @@ pub enum DiagnosticCode {
     UnusualOctave,
     /// W002: Suspicious duration (very large).
     SuspiciousDuration,
+    /// W003: Bar length mismatch.
+    BarLengthMismatch,
 }
 
 impl DiagnosticCode {
@@ -133,6 +135,7 @@ impl DiagnosticCode {
             // Warnings
             DiagnosticCode::UnusualOctave => "W001",
             DiagnosticCode::SuspiciousDuration => "W002",
+            DiagnosticCode::BarLengthMismatch => "W003",
         }
     }
 
@@ -141,6 +144,7 @@ impl DiagnosticCode {
         match self {
             DiagnosticCode::UnusualOctave
             | DiagnosticCode::SuspiciousDuration
+            | DiagnosticCode::BarLengthMismatch
             | DiagnosticCode::MissingTitle
             | DiagnosticCode::EmptyTitle
             | DiagnosticCode::EmptyChord
@@ -195,6 +199,7 @@ impl DiagnosticCode {
             // Warnings
             DiagnosticCode::UnusualOctave => "unusual octave (very high or very low)",
             DiagnosticCode::SuspiciousDuration => "suspicious duration (very large)",
+            DiagnosticCode::BarLengthMismatch => "bar length mismatch",
         }
     }
 }
