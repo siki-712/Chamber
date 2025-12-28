@@ -1,11 +1,13 @@
-X:1
-T:The   Messy Jig
-C:Traditional
-M:6/8
-L:1/8
-Q:1/4 = 120
-K:G
+X : 1
+T :  The   Messy Jig   
+C :Traditional
 
-|: GAG GAB | ABA ABd | edd gdd | edB dBA |
-GAG GAB | ABA ABd |(CDE)| (3 e d d g d B |
-AGF G3 :|% ending
+M :6/8
+L : 1/8
+
+Q :1/4 = 120
+K :  G
+
+| : GAG   GAB | ABA  ABd | edd  gdd | edB  dBA |   
+GAG GAB | ABA ABd | (  C D E ) | ( 3  e d d   g d B |  
+AGF   G3  : |   %ending
