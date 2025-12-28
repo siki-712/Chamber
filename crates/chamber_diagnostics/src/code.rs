@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::Severity;
 
 /// Diagnostic codes organized by category.
@@ -7,7 +9,7 @@ use crate::Severity;
 /// - M: Music body errors (M001-M099)
 /// - S: Structural errors (S001-S099)
 /// - W: Warnings (W001-W099)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DiagnosticCode {
     // =========================================
     // Lexer errors (L001-L099)

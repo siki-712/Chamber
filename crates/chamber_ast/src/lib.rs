@@ -4,9 +4,10 @@
 //! It contains only data types with no parsing or analysis logic.
 
 use chamber_text_size::TextRange;
+use serde::{Deserialize, Serialize};
 
 /// A complete ABC tune.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tune {
     /// Header fields (X:, T:, M:, K:, etc.)
     pub header: Header,
@@ -17,14 +18,14 @@ pub struct Tune {
 }
 
 /// Collection of header fields.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Header {
     pub fields: Vec<HeaderField>,
     pub range: TextRange,
 }
 
 /// A single header field.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeaderField {
     /// Field type (X, T, M, K, L, Q, C, etc.)
     pub kind: HeaderFieldKind,
@@ -34,7 +35,7 @@ pub struct HeaderField {
 }
 
 /// Types of header fields.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum HeaderFieldKind {
     /// X: Reference number (required, must be first)
     ReferenceNumber,
@@ -70,14 +71,14 @@ impl HeaderFieldKind {
 }
 
 /// The music body of a tune.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Body {
     pub elements: Vec<MusicElement>,
     pub range: TextRange,
 }
 
 /// A music element in the body.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MusicElement {
     Note(Note),
     Rest(Rest),
@@ -92,7 +93,7 @@ pub enum MusicElement {
 }
 
 /// A single note.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Note {
     /// Pitch class (C, D, E, F, G, A, B)
     pub pitch: Pitch,
@@ -108,7 +109,7 @@ pub struct Note {
 }
 
 /// Pitch class.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Pitch {
     C,
     D,
@@ -142,7 +143,7 @@ impl Pitch {
 }
 
 /// Accidental.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Accidental {
     Sharp,
     DoubleSharp,
@@ -152,7 +153,7 @@ pub enum Accidental {
 }
 
 /// A decoration attached to a note (!trill!, +fermata+, etc.).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Decoration {
     /// The decoration name (e.g., "trill", "fermata", "accent")
     pub name: String,
@@ -166,7 +167,7 @@ impl Decoration {
 }
 
 /// Note duration as a fraction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Duration {
     pub numerator: u32,
     pub denominator: u32,
@@ -185,7 +186,7 @@ impl Default for Duration {
 }
 
 /// A rest.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rest {
     /// Whether this is a multi-measure rest (Z vs z)
     pub multi_measure: bool,
@@ -196,7 +197,7 @@ pub struct Rest {
 }
 
 /// A chord (multiple notes played together).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Chord {
     pub notes: Vec<Note>,
     pub duration: Option<Duration>,
@@ -206,7 +207,7 @@ pub struct Chord {
 }
 
 /// Bar line types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BarLineKind {
     Single,
     Double,
@@ -217,14 +218,14 @@ pub enum BarLineKind {
 }
 
 /// A bar line.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BarLine {
     pub kind: BarLineKind,
     pub range: TextRange,
 }
 
 /// A tuplet (e.g., triplet).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tuplet {
     /// Tuplet ratio (e.g., 3 for triplet)
     pub ratio: u32,
@@ -234,21 +235,21 @@ pub struct Tuplet {
 }
 
 /// A slur grouping.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Slur {
     pub elements: Vec<MusicElement>,
     pub range: TextRange,
 }
 
 /// Grace notes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraceNotes {
     pub notes: Vec<Note>,
     pub range: TextRange,
 }
 
 /// Broken rhythm marker.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrokenRhythm {
     /// Direction: true for >, false for <
     pub dotted_first: bool,
@@ -258,13 +259,13 @@ pub struct BrokenRhythm {
 }
 
 /// A tie between notes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tie {
     pub range: TextRange,
 }
 
 /// An inline field within the music body (e.g., [M:3/4], [K:G]).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InlineField {
     /// Field label (M, K, L, Q, etc.)
     pub label: char,

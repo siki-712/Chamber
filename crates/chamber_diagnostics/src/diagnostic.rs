@@ -1,9 +1,10 @@
 use chamber_text_size::TextRange;
+use serde::{Deserialize, Serialize};
 
 use crate::{DiagnosticCode, Severity};
 
 /// A diagnostic message with location and details.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Diagnostic {
     /// The diagnostic code/category.
     pub code: DiagnosticCode,
@@ -20,7 +21,7 @@ pub struct Diagnostic {
 }
 
 /// A secondary label pointing to a related source location.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label {
     /// The source location.
     pub range: TextRange,

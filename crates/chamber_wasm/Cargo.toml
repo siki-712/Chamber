@@ -1,0 +1,23 @@
+[package]
+name = "chamber-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "ABC notation language toolkit - WASM bindings"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+chamber_parser = { path = "../chamber_parser" }
+chamber_analyzer = { path = "../chamber_analyzer" }
+chamber_formatter = { path = "../chamber_formatter" }
+chamber_diagnostics = { path = "../chamber_diagnostics" }
+chamber_ast = { path = "../chamber_ast" }
+chamber_text_size = { path = "../chamber_text_size" }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

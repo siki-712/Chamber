@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Severity level of a diagnostic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Severity {
     /// Informational message, does not indicate a problem.
     Info,

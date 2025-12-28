@@ -11,6 +11,7 @@ members = [
     "crates/chamber_analyzer",
     "crates/chamber_formatter",
     "crates/chamber_cli",
+    "crates/chamber_wasm",
 ]
 
 [workspace.package]

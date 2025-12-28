@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::TextSize;
 
 /// A range in source text, represented as a half-open interval `[start, end)`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TextRange {
     start: TextSize,
     end: TextSize,

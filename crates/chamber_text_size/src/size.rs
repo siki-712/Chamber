@@ -1,10 +1,12 @@
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
+use serde::{Deserialize, Serialize};
+
 /// A byte offset in source text.
 ///
 /// Internally represented as `u32` for memory efficiency.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TextSize(u32);
 
 impl TextSize {

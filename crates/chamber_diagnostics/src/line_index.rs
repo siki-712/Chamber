@@ -1,4 +1,5 @@
 use chamber_text_size::TextSize;
+use serde::{Deserialize, Serialize};
 
 /// Index for converting byte offsets to line/column positions.
 #[derive(Debug, Clone)]
@@ -8,7 +9,7 @@ pub struct LineIndex {
 }
 
 /// A line/column position (0-indexed).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LineCol {
     /// Line number (0-indexed).
     pub line: u32,

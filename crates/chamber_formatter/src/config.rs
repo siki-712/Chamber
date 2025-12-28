@@ -1,7 +1,9 @@
 //! Formatter configuration options.
 
+use serde::{Deserialize, Serialize};
+
 /// Configuration options for the ABC formatter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormatterConfig {
     /// Whether to normalize spacing between notes (single space).
     pub normalize_note_spacing: bool,

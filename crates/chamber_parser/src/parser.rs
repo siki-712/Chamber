@@ -1,11 +1,12 @@
 use chamber_diagnostics::{Diagnostic, DiagnosticBag, DiagnosticCode, DiagnosticSink};
 use chamber_lexer::{token_text, Lexer, Token, TokenKind};
 use chamber_text_size::{TextRange, TextSize};
+use serde::{Deserialize, Serialize};
 
 use crate::ast::*;
 
 /// Result of parsing, containing the AST and any diagnostics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseResult {
     /// The parsed tune (may be incomplete if errors occurred).
     pub tune: Tune,

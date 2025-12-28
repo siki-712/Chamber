@@ -30,12 +30,13 @@ pub mod rules;
 
 use chamber_ast::Tune;
 use chamber_diagnostics::Diagnostic;
+use serde::{Deserialize, Serialize};
 
 pub use rule::{Category, Rule, RuleExt, RuleMeta};
 pub use rules::{BarLength, SuspiciousDuration, UnknownDecoration, UnusualOctave};
 
 /// Result of semantic analysis.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisResult {
     /// Diagnostics collected during analysis.
     pub diagnostics: Vec<Diagnostic>,
