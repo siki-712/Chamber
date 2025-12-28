@@ -32,6 +32,10 @@ pub struct FormatterConfig {
     /// `( 3ABC` -> `(3ABC`
     pub normalize_tuplets: bool,
 
+    /// Whether to normalize comments (add space after %).
+    /// `%comment` -> `% comment`
+    pub normalize_comments: bool,
+
     /// Maximum line width for music lines (0 = no limit).
     pub max_line_width: usize,
 }
@@ -48,6 +52,7 @@ impl Default for FormatterConfig {
             normalize_header_spacing: true,
             remove_empty_header_lines: true,
             normalize_tuplets: true,
+            normalize_comments: true,
             max_line_width: 0,
         }
     }
@@ -66,6 +71,7 @@ impl FormatterConfig {
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
             normalize_tuplets: false,
+            normalize_comments: false,
             max_line_width: 0,
         }
     }
@@ -82,6 +88,7 @@ impl FormatterConfig {
             normalize_header_spacing: false,
             remove_empty_header_lines: false,
             normalize_tuplets: false,
+            normalize_comments: false,
             max_line_width: 0,
         }
     }

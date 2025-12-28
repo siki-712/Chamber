@@ -102,7 +102,11 @@ impl<'a> Formatter<'a> {
         // Handle leading trivia
         for trivia in token.leading_trivia() {
             let text = trivia.text(self.source);
-            self.emit_text(text);
+            if trivia.kind == SyntaxKind::COMMENT {
+                self.emit_comment(text);
+            } else {
+                self.emit_text(text);
+            }
         }
 
         // Emit token text
@@ -112,7 +116,11 @@ impl<'a> Formatter<'a> {
         // Handle trailing trivia
         for trivia in token.trailing_trivia() {
             let text = trivia.text(self.source);
-            self.emit_text(text);
+            if trivia.kind == SyntaxKind::COMMENT {
+                self.emit_comment(text);
+            } else {
+                self.emit_text(text);
+            }
         }
     }
 
@@ -131,6 +139,24 @@ impl<'a> Formatter<'a> {
             self.current_line.clear();
         } else {
             self.current_line.push_str(s);
+        }
+    }
+
+    /// Emit a comment, normalizing if configured.
+    /// `%comment` -> `% comment`
+    fn emit_comment(&mut self, text: &str) {
+        if self.config.normalize_comments && text.starts_with('%') {
+            // Check if there's already a space after %
+            let after_percent = &text[1..];
+            if !after_percent.is_empty() && !after_percent.starts_with(' ') && !after_percent.starts_with('%') {
+                // Add space after %
+                self.emit("% ");
+                self.emit(after_percent);
+            } else {
+                self.emit(text);
+            }
+        } else {
+            self.emit(text);
         }
     }
 
@@ -284,8 +310,8 @@ impl<'a> Formatter<'a> {
                         // Don't emit whitespace-only leading trivia
                     }
                     SyntaxKind::COMMENT => {
-                        // Preserve comments
-                        self.emit_text(trivia.text(self.source));
+                        // Preserve comments (normalize if configured)
+                        self.emit_comment(trivia.text(self.source));
                     }
                     _ => {
                         self.emit_text(trivia.text(self.source));
@@ -340,8 +366,10 @@ impl<'a> Formatter<'a> {
                     }
                     self.emit_text(t.text(self.source));
                 }
+                SyntaxKind::COMMENT => {
+                    self.emit_comment(t.text(self.source));
+                }
                 _ => {
-                    // Comments, etc.
                     self.emit_text(t.text(self.source));
                 }
             }
@@ -460,11 +488,16 @@ impl<'a> Formatter<'a> {
         for child in node.children() {
             match child {
                 CstChild::Token(token) => {
-                    // Skip leading whitespace (we control spacing)
-                    // but preserve comments
+                    // Preserve comments and newlines in leading trivia, skip whitespace
                     for trivia in token.leading_trivia() {
-                        if trivia.kind == SyntaxKind::COMMENT {
-                            self.emit_text(trivia.text(self.source));
+                        match trivia.kind {
+                            SyntaxKind::COMMENT => {
+                                self.emit_comment(trivia.text(self.source));
+                            }
+                            SyntaxKind::NEWLINE => {
+                                self.emit_text(trivia.text(self.source));
+                            }
+                            _ => {} // Skip whitespace
                         }
                     }
 
@@ -474,10 +507,10 @@ impl<'a> Formatter<'a> {
                     // Preserve trailing newlines and comments, skip whitespace
                     for trivia in token.trailing_trivia() {
                         match trivia.kind {
-                            SyntaxKind::NEWLINE => {
-                                self.emit_text(trivia.text(self.source));
-                            }
                             SyntaxKind::COMMENT => {
+                                self.emit_comment(trivia.text(self.source));
+                            }
+                            SyntaxKind::NEWLINE => {
                                 self.emit_text(trivia.text(self.source));
                             }
                             _ => {} // Skip whitespace
@@ -870,5 +903,39 @@ c'BAG|FEDC|
 
         // Comment should be preserved
         assert!(formatted.contains("% reference number"));
+    }
+
+    #[test]
+    fn test_normalize_comments() {
+        // Comment without space after %
+        let source = "X:1\nK:C\n%comment\nCDEF|\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        // Should normalize %comment to % comment
+        assert!(formatted.contains("% comment"), "Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_normalize_comments_preserves_existing_space() {
+        // Comment already has space after %
+        let source = "X:1\nK:C\n% already spaced\nCDEF|\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        // Should preserve existing space (not double it)
+        assert!(formatted.contains("% already spaced"), "Got: {}", formatted);
+        assert!(!formatted.contains("%  already"), "Got: {}", formatted);
+    }
+
+    #[test]
+    fn test_normalize_comments_preserves_directive() {
+        // %% is a directive, should not add space
+        let source = "X:1\nK:C\n%%directive\nCDEF|\n";
+
+        let formatted = format(source, &FormatterConfig::default());
+
+        // Should not add space after %% (directive)
+        assert!(formatted.contains("%%directive"), "Got: {}", formatted);
     }
 }
