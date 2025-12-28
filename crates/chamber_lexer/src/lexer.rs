@@ -171,7 +171,8 @@ impl<'a> Lexer<'a> {
             | 'W' | 'X' | 'Y' => {
                 if self.in_header {
                     self.text()
-                } else if self.peek() == Some(':') {
+                } else if self.has_colon_ahead() {
+                    // Field label: "X:", "T :", "K  :" etc.
                     TokenKind::FieldLabel
                 } else {
                     // Treat as text if not followed by colon
@@ -210,6 +211,20 @@ impl<'a> Lexer<'a> {
 
     fn peek(&self) -> Option<char> {
         self.source[self.position..].chars().next()
+    }
+
+    /// Check if there's a colon ahead, possibly with whitespace in between.
+    /// Used for detecting field labels like "T :" or "K  :".
+    fn has_colon_ahead(&self) -> bool {
+        let remaining = &self.source[self.position..];
+        for c in remaining.chars() {
+            match c {
+                ':' => return true,
+                ' ' | '\t' => continue,
+                _ => return false,
+            }
+        }
+        false
     }
 
     fn advance(&mut self) -> char {

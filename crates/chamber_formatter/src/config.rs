@@ -21,6 +21,13 @@ pub struct FormatterConfig {
     /// Whether to normalize header field order (X, T, C, M, L, Q, K).
     pub normalize_header_order: bool,
 
+    /// Whether to normalize header field spacing (remove spaces around colon).
+    /// `T : Value` -> `T:Value`
+    pub normalize_header_spacing: bool,
+
+    /// Whether to remove empty lines in the header section.
+    pub remove_empty_header_lines: bool,
+
     /// Maximum line width for music lines (0 = no limit).
     pub max_line_width: usize,
 }
@@ -34,6 +41,8 @@ impl Default for FormatterConfig {
             trim_trailing_whitespace: true,
             ensure_final_newline: true,
             normalize_header_order: false,
+            normalize_header_spacing: true,
+            remove_empty_header_lines: true,
             max_line_width: 0,
         }
     }
@@ -49,6 +58,8 @@ impl FormatterConfig {
             trim_trailing_whitespace: false,
             ensure_final_newline: false,
             normalize_header_order: false,
+            normalize_header_spacing: false,
+            remove_empty_header_lines: false,
             max_line_width: 0,
         }
     }
@@ -62,6 +73,8 @@ impl FormatterConfig {
             trim_trailing_whitespace: true,
             ensure_final_newline: true,
             normalize_header_order: false,
+            normalize_header_spacing: false,
+            remove_empty_header_lines: false,
             max_line_width: 0,
         }
     }
