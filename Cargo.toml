@@ -9,6 +9,7 @@ members = [
     "crates/chamber_diagnostics",
     "crates/chamber_parser",
     "crates/chamber_analyzer",
+    "crates/chamber_formatter",
     "crates/chamber_cli",
 ]
 

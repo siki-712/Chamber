@@ -44,6 +44,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chamber_formatter"
+version = "0.1.0"
+dependencies = [
+ "chamber_cst",
+ "chamber_parser",
+ "chamber_syntax",
+ "chamber_text_size",
+]
+
+[[package]]
 name = "chamber_lexer"
 version = "0.1.0"
 dependencies = [
