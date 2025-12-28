@@ -383,7 +383,7 @@ impl<'a> Formatter<'a> {
                         self.after_bar = true;
                         self.after_note = false;
                     }
-                    SyntaxKind::NOTE | SyntaxKind::REST_NODE | SyntaxKind::CHORD => {
+                    SyntaxKind::NOTE | SyntaxKind::REST_NODE | SyntaxKind::CHORD | SyntaxKind::TUPLET => {
                         self.maybe_space_between_notes(prev);
                         self.format_node(node);
                         self.after_note = true;
