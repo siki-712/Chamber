@@ -57,8 +57,10 @@ name = "chamber_parser"
 version = "0.1.0"
 dependencies = [
  "chamber_ast",
+ "chamber_cst",
  "chamber_diagnostics",
  "chamber_lexer",
+ "chamber_syntax",
  "chamber_text_size",
 ]
 
