@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="Chamber" width="120" height="120">
+</p>
+
 # Chamber
 
 > **An opinionated language environment for ABC notation.**
