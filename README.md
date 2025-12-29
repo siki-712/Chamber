@@ -9,26 +9,66 @@ Just like chamber music, it focuses on **structure, clarity, and interaction**, 
 
 ---
 
-## Why chamber?
+## Installation
 
-Most existing ABC tools are designed for **rendering or conversion**.
-They assume the notation is already complete and correct.
+### npm (Browser/WASM)
 
-**chamber is built for editing.**
+```bash
+npm install chamber-abc
+```
 
-* 🎼 Designed for *writing* ABC, not just compiling it
-* 🧠 Partial-safe: works on incomplete or broken notation
-* ⚡ Fast and deterministic (Rust core)
-* 🧩 One shared AST for all features
-* 🧭 Opinionated about how ABC should be written
+### CLI
 
-If you are editing ABC in a browser or editor, **chamber is the missing foundation**.
+```bash
+cargo install --path crates/chamber_cli
+```
 
 ---
 
-## Core features
+## Quick Start
 
-### ✅ Partial-safe parsing
+### Browser
+
+```javascript
+import init, { parse, analyze, tokenize, format_default } from 'chamber-abc';
+
+await init();
+
+const source = `X:1
+T:My Tune
+M:4/4
+L:1/8
+K:C
+CDEF GABc|`;
+
+// Parse
+const result = parse(source);
+console.log(result.tune);        // AST
+console.log(result.diagnostics); // Parse errors
+
+// Analyze (lint)
+const analysis = analyze(result.tune);
+console.log(analysis.diagnostics); // Warnings
+
+// Tokenize (for syntax highlighting)
+const tokens = tokenize(source);
+// [{ kind: "FieldLabel", range: { start: 0, end: 1 } }, ...]
+
+// Format
+const formatted = format_default(source);
+```
+
+### CLI
+
+```bash
+chamber check tune.abc
+```
+
+---
+
+## Features
+
+### Partial-safe parsing
 
 chamber never crashes on unfinished input.
 
@@ -38,48 +78,46 @@ C D E F | G
 ```
 
 Still produces:
-
-* an AST
-* syntax highlights
-* diagnostics
+- an AST
+- diagnostics
+- tokens for highlighting
 
 Editing always comes first.
 
 ---
 
-### ✅ Single source of truth: AST
+### Structured diagnostics
 
-All functionality is built on a shared, typed AST:
+30+ diagnostic codes with rich context:
 
-* syntax highlighting
-* diagnostics
-* formatting
-* lint rules
-* future transformations
+```
+error[H002]: missing key field (K:)
+ --> tune.abc:1:1
+  |
+1 | X:1
+  | ^^^ tune must have a K: field
 
-No duplicated logic. No regex-only hacks.
-
----
-
-### ✅ Structured diagnostics
-
-Errors are not just strings.
-
-```text
-abc/missing-key
-Missing `K:` field.
+warning[W003]: bar length mismatch
+ --> tune.abc:5:1
+  |
+5 | CDEFG|
+  | ^^^^^ bar has 5/8, expected 4/4
 ```
 
-Diagnostics are:
+---
 
-* span-aware
-* severity-based (error / warning)
-* rule-driven
-* designed for future auto-fixes
+### Lint rules
+
+| Rule | Code | Description |
+|------|------|-------------|
+| UnknownDecoration | M014 | Unknown decoration name (with suggestions) |
+| UnusualOctave | W001 | Notes in extreme octaves |
+| SuspiciousDuration | W002 | Very long note durations |
+| BarLengthMismatch | W003 | Bar length doesn't match time signature |
 
 ---
 
-### ✅ Opinionated formatting
+### Formatter
 
 ```abc
 C  D   E|F G
@@ -91,122 +129,94 @@ C  D   E|F G
 C D E | F G
 ```
 
-Formatting in chamber is:
-
-* AST-based
-* idempotent
-* minimal-diff
-* rule-oriented
-
----
-
-### ✅ Editor-friendly syntax highlighting
-
-chamber outputs **span-based highlights**, not colors.
-
-This makes it editor-agnostic and suitable for:
-
-* CodeMirror
-* Monaco
-* custom editors
+13 configurable options:
+- `normalize_note_spacing`
+- `space_around_bars`
+- `trim_trailing_whitespace`
+- `normalize_header_order`
+- and more...
 
 ---
 
-## Philosophy
+### Syntax highlighting (tokenizer)
 
-chamber follows three core principles:
+```javascript
+const tokens = tokenize(source);
+// [
+//   { kind: "FieldLabel", range: { start: 0, end: 1 } },
+//   { kind: "Note", range: { start: 10, end: 11 } },
+//   { kind: "Bar", range: { start: 20, end: 21 } },
+//   ...
+// ]
+```
 
-### 1. Editing-first
-
-The user is always in the middle of writing.
-Incomplete input is the norm, not an error case.
-
----
-
-### 2. Opinionated, but transparent
-
-There *is* a recommended way to write ABC.
-chamber encodes these opinions as rules and explains them clearly.
+Token kinds: `Note`, `Rest`, `FieldLabel`, `Comment`, `Decoration`, `Bar`, `Sharp`, `Flat`, `Tuplet`, etc.
 
 ---
 
-### 3. One core, many frontends
+## Architecture
 
-The same engine powers:
+```
+source text
+    ↓
+  lexer → tokens (for highlighting)
+    ↓
+  parser (partial-safe)
+    ↓
+   AST
+    ↓
+ ┌──┴──┐
+ │     │
+analyzer  formatter
+ │
+diagnostics
+```
 
-* WASM (browser)
-* CLI
-* LSP (planned)
+### Crates
+
+| Crate | Description |
+|-------|-------------|
+| `chamber_lexer` | Tokenizer |
+| `chamber_parser` | Partial-safe parser |
+| `chamber_ast` | AST types |
+| `chamber_analyzer` | Lint rules |
+| `chamber_formatter` | Code formatter |
+| `chamber_diagnostics` | Error/warning types |
+| `chamber_wasm` | WASM bindings |
+| `chamber_cli` | CLI tool |
 
 ---
 
 ## What chamber is *not*
 
-* ❌ A score renderer
-* ❌ A playback engine
-* ❌ A full ABC specification reference
+- A score renderer
+- A playback engine
+- A full ABC specification reference
 
 chamber focuses on **language tooling**, not visualization.
 
 ---
 
-## Architecture (high level)
+## Roadmap
 
-```
-source text
-    ↓
-  lexer
-    ↓
-  parser (partial-safe)
-    ↓
-   AST
-    ↓↓↓↓↓
- highlight · diagnostics · formatter · rules
-```
-
----
-
-## Planned usage
-
-### Browser (WASM)
-
-```ts
-const result = chamber.analyze(source)
-
-result.highlights
-result.diagnostics
-result.formatted
-```
-
----
-
-### CLI
-
-```sh
-chamber check tune.abc
-chamber format tune.abc
-```
-
----
-
-## Status
-
-🚧 **Work in progress**
-
-Initial focus:
-
-* core AST
-* partial-safe parser
-* diagnostics
-* syntax highlighting
+- [x] Partial-safe parser
+- [x] Structured diagnostics (30+ codes)
+- [x] Lint rules (4 rules)
+- [x] Formatter (13 options)
+- [x] WASM bindings
+- [x] npm package (`chamber-abc`)
+- [x] Tokenizer for syntax highlighting
+- [ ] LSP server
+- [ ] More lint rules
+- [ ] Auto-fix suggestions
 
 ---
 
 ## Inspiration
 
-* [Biome](https://biomejs.dev/)
-* ESLint / Prettier
-* rust-analyzer
+- [Biome](https://biomejs.dev/)
+- ESLint / Prettier
+- rust-analyzer
 
 Applied to **music notation**, not programming languages.
 
@@ -218,8 +228,4 @@ MIT
 
 ---
 
-## One-line pitch
-
 > **chamber is the environment where ABC notation is written, examined, and refined — like chamber music itself.**
-
----
