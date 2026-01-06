@@ -84,6 +84,8 @@ pub enum TokenKind {
     Tuplet,
     /// Decoration (!trill!, +fermata+, etc.)
     Decoration,
+    /// Annotation/chord symbol ("CM7", "Am", etc.)
+    Annotation,
 
     // Text and numbers
     /// Plain text content
@@ -152,6 +154,7 @@ impl TokenKind {
             TokenKind::BrokenRhythm => SyntaxKind::BROKEN_RHYTHM,
             TokenKind::Tuplet => SyntaxKind::TUPLET_MARKER,
             TokenKind::Decoration => SyntaxKind::DECORATION,
+            TokenKind::Annotation => SyntaxKind::ANNOTATION,
             TokenKind::Text => SyntaxKind::TEXT,
             TokenKind::Number => SyntaxKind::NUMBER,
             TokenKind::Slash => SyntaxKind::SLASH,

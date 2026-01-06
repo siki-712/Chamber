@@ -186,6 +186,15 @@ impl<'a> CstParser<'a> {
                 )))
             }
 
+            // Annotation/chord symbol
+            SyntaxKind::ANNOTATION => {
+                let token = self.advance()?;
+                Some(CstChild::Node(CstNode::with_children(
+                    SyntaxKind::ANNOTATION_NODE,
+                    vec![CstChild::Token(token)],
+                )))
+            }
+
             // Tie
             SyntaxKind::TIE => {
                 let token = self.advance()?;

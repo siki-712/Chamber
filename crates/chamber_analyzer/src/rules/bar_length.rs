@@ -173,8 +173,8 @@ impl Rule for BarLength {
                     }
                     bar_end_pos = slur.range.end().into();
                 }
-                MusicElement::GraceNotes(_) => {
-                    // Grace notes don't count toward bar length
+                MusicElement::GraceNotes(_) | MusicElement::Annotation(_) => {
+                    // Grace notes and annotations don't count toward bar length
                 }
                 MusicElement::InlineField(field) => {
                     // TODO: Handle inline M: and L: changes

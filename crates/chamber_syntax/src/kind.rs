@@ -83,6 +83,8 @@ pub enum SyntaxKind {
     TUPLET_MARKER,
     /// Decoration (!trill!, +fermata+, etc.)
     DECORATION,
+    /// Annotation/chord symbol ("CM7", "Am", etc.)
+    ANNOTATION,
     /// Number
     NUMBER,
     /// Slash (/)
@@ -143,6 +145,8 @@ pub enum SyntaxKind {
     ACCIDENTAL,
     /// Decoration (!trill!)
     DECORATION_NODE,
+    /// Annotation/chord symbol ("CM7")
+    ANNOTATION_NODE,
 }
 
 impl SyntaxKind {

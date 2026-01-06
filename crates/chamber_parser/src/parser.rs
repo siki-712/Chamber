@@ -609,6 +609,7 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
             TokenKind::LeftBrace => self.parse_grace_notes().map(MusicElement::GraceNotes),
             TokenKind::BrokenRhythm => self.parse_broken_rhythm().map(MusicElement::BrokenRhythm),
             TokenKind::Tie => self.parse_tie().map(MusicElement::Tie),
+            TokenKind::Annotation => self.parse_annotation().map(MusicElement::Annotation),
             TokenKind::Decoration => {
                 // Look ahead past decorations to find what element follows
                 let element_kind = self.peek_past_decorations();
@@ -1217,6 +1218,25 @@ impl<'a, S: DiagnosticSink> Parser<'a, S> {
         }
 
         Some(Tie { range: token.range })
+    }
+
+    fn parse_annotation(&mut self) -> Option<Annotation> {
+        let token = self.advance()?;
+        if token.kind != TokenKind::Annotation {
+            return None;
+        }
+
+        let raw_text = self.token_text(&token);
+        // Remove surrounding double quotes
+        let text = raw_text
+            .trim_start_matches('"')
+            .trim_end_matches('"')
+            .to_string();
+
+        Some(Annotation {
+            text,
+            range: token.range,
+        })
     }
 
     // Helper methods
