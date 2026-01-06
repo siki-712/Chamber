@@ -209,6 +209,15 @@ impl<'a> Lexer<'a> {
                 }
             }
 
+            // Annotations/chord symbols ("CM7", "Am", etc.)
+            '"' => {
+                if self.in_header {
+                    self.text()
+                } else {
+                    self.annotation()
+                }
+            }
+
             // Everything else in header context is text
             _ if self.in_header => self.text(),
 
@@ -392,6 +401,23 @@ impl<'a> Lexer<'a> {
             self.advance();
         }
         // Unterminated decoration (reached EOF)
+        TokenKind::Error
+    }
+
+    fn annotation(&mut self) -> TokenKind {
+        // Consume annotation text until closing double quote
+        while let Some(c) = self.peek() {
+            if c == '"' {
+                self.advance(); // consume closing quote
+                return TokenKind::Annotation;
+            }
+            if c == '\n' || c == '\r' {
+                // Unterminated annotation
+                return TokenKind::Error;
+            }
+            self.advance();
+        }
+        // Unterminated annotation (reached EOF)
         TokenKind::Error
     }
 }

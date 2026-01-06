@@ -767,3 +767,83 @@ fn test_notes_with_and_without_decorations() {
         other => panic!("Expected Note, got {:?}", other),
     }
 }
+
+// ============================================
+// Annotations (chord symbols)
+// ============================================
+
+#[test]
+fn test_simple_annotation() {
+    let tune = parse("X:1\nK:C\n\"CM7\"C");
+
+    match &tune.body.elements[0] {
+        MusicElement::Annotation(ann) => {
+            assert_eq!(ann.text, "CM7");
+        }
+        other => panic!("Expected Annotation, got {:?}", other),
+    }
+
+    match &tune.body.elements[1] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::C);
+        }
+        other => panic!("Expected Note, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_annotation_with_space() {
+    let tune = parse("X:1\nK:C\n\"Am7\" C E G");
+
+    match &tune.body.elements[0] {
+        MusicElement::Annotation(ann) => {
+            assert_eq!(ann.text, "Am7");
+        }
+        other => panic!("Expected Annotation, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_multiple_annotations() {
+    let tune = parse("X:1\nK:C\n\"C\"C \"G\"G");
+
+    // First annotation
+    match &tune.body.elements[0] {
+        MusicElement::Annotation(ann) => {
+            assert_eq!(ann.text, "C");
+        }
+        other => panic!("Expected Annotation at 0, got {:?}", other),
+    }
+
+    // First note
+    match &tune.body.elements[1] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::C);
+        }
+        other => panic!("Expected Note at 1, got {:?}", other),
+    }
+
+    // Second annotation
+    match &tune.body.elements[2] {
+        MusicElement::Annotation(ann) => {
+            assert_eq!(ann.text, "G");
+        }
+        other => panic!("Expected Annotation at 2, got {:?}", other),
+    }
+
+    // Second note
+    match &tune.body.elements[3] {
+        MusicElement::Note(note) => {
+            assert_eq!(note.pitch, Pitch::G);
+        }
+        other => panic!("Expected Note at 3, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_annotation_no_error() {
+    let result = parse_with_diagnostics("X:1\nT:Test\nK:C\n\"CM7\" C E G B |");
+
+    // Should not have any errors about unexpected character
+    assert!(!result.has_errors());
+}

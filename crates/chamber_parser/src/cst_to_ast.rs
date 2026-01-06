@@ -4,9 +4,9 @@
 //! into a semantic AST for analysis.
 
 use chamber_ast::{
-    Accidental, BarLine, BarLineKind, Body, BrokenRhythm, Chord, Decoration, Duration, GraceNotes,
-    Header, HeaderField, HeaderFieldKind, InlineField, MusicElement, Note, Pitch, Rest, Slur, Tie,
-    Tune, Tuplet,
+    Accidental, Annotation, BarLine, BarLineKind, Body, BrokenRhythm, Chord, Decoration, Duration,
+    GraceNotes, Header, HeaderField, HeaderFieldKind, InlineField, MusicElement, Note, Pitch, Rest,
+    Slur, Tie, Tune, Tuplet,
 };
 use chamber_cst::{CstChild, CstNode, CstToken};
 use chamber_syntax::SyntaxKind;
@@ -100,6 +100,9 @@ fn convert_music_element(child: &CstChild, source: &str) -> Option<MusicElement>
             SyntaxKind::TIE_NODE => Some(MusicElement::Tie(convert_tie(node))),
             SyntaxKind::INLINE_FIELD => {
                 Some(MusicElement::InlineField(convert_inline_field(node, source)))
+            }
+            SyntaxKind::ANNOTATION_NODE => {
+                Some(MusicElement::Annotation(convert_annotation(node, source)))
             }
             _ => None,
         },
@@ -390,6 +393,24 @@ fn convert_inline_field(cst: &CstNode, source: &str) -> InlineField {
     }
 }
 
+fn convert_annotation(cst: &CstNode, source: &str) -> Annotation {
+    let text = cst
+        .first_token()
+        .map(|t| {
+            let raw = t.text(source);
+            // Remove surrounding double quotes
+            raw.trim_start_matches('"')
+                .trim_end_matches('"')
+                .to_string()
+        })
+        .unwrap_or_default();
+
+    Annotation {
+        text,
+        range: cst.range(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,6 +424,30 @@ mod tests {
 
         assert!(!ast.header.fields.is_empty());
         assert!(!ast.body.elements.is_empty());
+    }
+
+    #[test]
+    fn test_convert_annotation() {
+        let source = "X:1\nK:C\n\"CM7\"C";
+        let cst = parse_cst(source);
+        let ast = cst_to_ast(&cst, source);
+
+        eprintln!("Body elements: {:?}", ast.body.elements);
+        assert_eq!(ast.body.elements.len(), 2, "Expected 2 elements (annotation + note)");
+
+        match &ast.body.elements[0] {
+            MusicElement::Annotation(ann) => {
+                assert_eq!(ann.text, "CM7");
+            }
+            other => panic!("Expected Annotation at 0, got {:?}", other),
+        }
+
+        match &ast.body.elements[1] {
+            MusicElement::Note(note) => {
+                assert_eq!(note.pitch, Pitch::C);
+            }
+            other => panic!("Expected Note at 1, got {:?}", other),
+        }
     }
 
     #[test]

@@ -90,6 +90,7 @@ pub enum MusicElement {
     BrokenRhythm(BrokenRhythm),
     Tie(Tie),
     InlineField(InlineField),
+    Annotation(Annotation),
 }
 
 /// A single note.
@@ -271,5 +272,13 @@ pub struct InlineField {
     pub label: char,
     /// Field value as text
     pub value: String,
+    pub range: TextRange,
+}
+
+/// An annotation or chord symbol (e.g., "CM7", "Am", "^text").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Annotation {
+    /// The annotation text (without quotes)
+    pub text: String,
     pub range: TextRange,
 }

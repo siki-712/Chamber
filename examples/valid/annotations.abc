@@ -1,0 +1,15 @@
+X:1
+T:Annotation Examples
+M:4/4
+L:1/4
+K:C
+% Chord symbols (most common use)
+"C"C E G c | "G7"B, D G B | "Am"A, C E A | "F"F, A c f |
+% Jazz chords
+"CM7"C E G B | "Dm7"D F A c | "G7"G, B, D F | "CM7"C4 |
+% Multiple annotations in sequence
+"C"C "Am"A "F"F "G"G |
+% Annotations with various note values
+"Em"E2 G2 | "D"D4 |
+% Positioning annotations (ABC standard prefixes)
+"^above"C2 "_below"D2 | "<left"E2 ">right"F2 | "@free"G4 |
